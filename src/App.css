@@ -1,13 +1,11 @@
 /* src/App.css */
-html {
-  scroll-behavior: smooth;
-}
-
-body {
+html, body {
   margin: 0;
   padding: 0;
   font-family: Arial, sans-serif;
+  scroll-behavior: smooth;
   background-color: #f4f6f8;
+  overflow-x: hidden;
 }
 
 ::-webkit-scrollbar {
@@ -17,4 +15,8 @@ body {
 ::-webkit-scrollbar-thumb {
   background-color: #00796b;
   border-radius: 4px;
+}
+
+body, #root {
+  height: 100vh;
 }
