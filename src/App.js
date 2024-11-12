@@ -1,42 +1,24 @@
 // src/App.js
 import React, { useEffect, useState } from "react";
+import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import styled from "styled-components";
-import axios from "axios";
 import Sidebar from "./components/Sidebar";
 import Home from "./components/Home";
-import Section from "./components/Section";
-import Loader from "./components/Loader";
+import Medicines from "./components/Medicines"; // New component
 
 function App() {
-  const [medicines, setMedicines] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await axios.get("https://api.example.com/medicines");
-        setMedicines(response.data);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
-  if (loading) return <Loader />;
-
   return (
-    <AppContainer>
-      <Sidebar />
-      <MainContent>
-        <Home />
-        {medicines.map((medicine, index) => (
-          <Section key={index} data={medicine} />
-        ))}
-      </MainContent>
-    </AppContainer>
+    <Router>
+      <AppContainer>
+        <Sidebar />
+        <MainContent>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/medicines" element={<Medicines />} />
+          </Routes>
+        </MainContent>
+      </AppContainer>
+    </Router>
   );
 }
 

@@ -1,6 +1,7 @@
 // src/components/Sidebar.js
 import React from "react";
 import styled from "styled-components";
+import { Link } from "react-router-dom";
 import { FaHome, FaPills, FaStore, FaBell } from "react-icons/fa";
 
 function Sidebar() {
@@ -9,10 +10,10 @@ function Sidebar() {
       <Logo>MediQ</Logo>
       <NavLinks>
         <NavItem>
-          <FaHome /> Home
+          <Link to="/"><FaHome /> Home</Link>
         </NavItem>
         <NavItem>
-          <FaPills /> Medicines
+          <Link to="/medicines"><FaPills /> Medicines</Link>
         </NavItem>
         <NavItem>
           <FaStore /> Stores
@@ -55,16 +56,20 @@ const NavLinks = styled.div`
 `;
 
 const NavItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
   font-size: 1.2rem;
-  cursor: pointer;
   padding: 0.5rem 1rem;
   transition: background 0.3s;
-  
+  border-radius: 8px;
+
   &:hover {
     background: #004d40;
-    border-radius: 8px;
+  }
+
+  a {
+    color: #fff;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
 `;
