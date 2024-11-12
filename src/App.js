@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import axios from "axios";
 import Sidebar from "./components/Sidebar";
+import Home from "./components/Home";
 import Section from "./components/Section";
 import Loader from "./components/Loader";
 
@@ -30,6 +31,7 @@ function App() {
     <AppContainer>
       <Sidebar />
       <MainContent>
+        <Home />
         {medicines.map((medicine, index) => (
           <Section key={index} data={medicine} />
         ))}
@@ -54,12 +56,4 @@ const MainContent = styled.div`
   display: flex;
   flex-direction: column;
   gap: 20px;
-  scrollbar-width: thin;
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background-color: #00796b;
-    border-radius: 4px;
-  }
 `;
