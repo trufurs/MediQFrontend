@@ -1,0 +1,36 @@
+.navb {
+    border: 2px solid lightgoldenrodyellow;
+    border-radius: 100px;
+    overflow: hidden;
+    position: sticky;
+}
+
+.navbLink {
+    color: lightgoldenrodyellow;
+    text-decoration: none;
+    overflow: hidden;
+    box-sizing: border-box;
+    flex-shrink: initial;
+    stroke-dashoffset: 10px;
+    transition: 0.3s;
+}
+
+.navbLink:hover {
+    /* color: black;
+    background-color: aliceblue; */
+    box-sizing: inherit;
+    text-decoration: none;
+    text-shadow: 0 0 5px #ffffff, 0 0 10px #ffffff, 0 0 20px #ffffff , 0 0 40px #00ff00, 0 0 80px #00ff00, 0 0 90px #00ff00, 0 0 100px #00ff00, 0 0 150px #00ff00;
+    shape-rendering: geometricPrecision;
+    stroke-dashoffset: 10px;
+    transition: 0.3s;
+}
+
+h2 {
+    color: lightgoldenrodyellow;
+    text-align: center;
+    font-size: 50px;
+    font-family: 'Times New Roman', Times, serif;
+    text-shadow: 0px 10px 8px rgb(3, 174, 3);
+    shape-rendering: geometricPrecision;
+}
