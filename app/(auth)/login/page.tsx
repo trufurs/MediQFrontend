@@ -1,16 +1,18 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import { login } from "@/utils/auth";
 import Form from 'next/form'
 
 
-export default function LoginPage() {
+export default  function LoginPage() {
     const [user, setUser] = useState("");
-    const handleLogin = (event: React.FormEvent<HTMLFormElement>) => {
+    const handleLogin =  async(event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const form = event.target as HTMLFormElement;
-        login(form.email.value, form.password.value);
+        if(await login(form.email.value, form.password.value)){
+            redirect("/");
+        }
     }
     return (
         <div className="flex flex-row items-center justify-center">
@@ -22,7 +24,7 @@ export default function LoginPage() {
                 <h1 className="text-2xl font-bold text-white-800 mb-6">Login</h1>
                 <div className="w-full mb-4">
                     <label htmlFor="email" className="block text-sm font-medium text-white-700 mb-1">
-                        Email
+                        Email*
                     </label>
                     <input
                         type="email"
@@ -35,7 +37,7 @@ export default function LoginPage() {
                 </div>
                 <div className="w-full mb-6">
                     <label htmlFor="password" className="block text-sm font-medium text-white-700 mb-1">
-                        Password
+                        Password*
                     </label>
                     <input
                         type="password"

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { login } from "@/utils/auth";
+import { register } from "@/utils/auth";
 import Form from 'next/form'
 
 
@@ -10,7 +10,8 @@ export default function SignupPage() {
     const handleSignup = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const form = event.target as HTMLFormElement;
-        login(form.email.value, form.password.value);
+
+        register(form.namee.value ,form.email.value, form.password.value , form.gender.value , form.phone.value);
     }
     return (
         <div className="flex flex-row items-center justify-center">
@@ -22,12 +23,12 @@ export default function SignupPage() {
                 <h1 className="text-2xl font-bold text-white-800 mb-6">Signup</h1>
                 <div className="w-full mb-4">
                     <label htmlFor="Name" className="block text-sm font-medium text-white-700 mb-1">
-                        Name
+                        Name*
                     </label>
                     <input
                         type="text"
                         name="Name"
-                        id="name"
+                        id="namee"
                         placeholder="Enter your Full Name"
                         required
                         className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -35,7 +36,7 @@ export default function SignupPage() {
                 </div>
                 <div className="w-full mb-4">
                     <label htmlFor="email" className="block text-sm font-medium text-white-700 mb-1">
-                        Email
+                        Email*
                     </label>
                     <input
                         type="email"
@@ -48,7 +49,7 @@ export default function SignupPage() {
                 </div>
                 <div className="w-full mb-6">
                     <label htmlFor="password" className="block text-sm font-medium text-white-700 mb-1">
-                        Password
+                        Password*
                     </label>
                     <input
                         type="password"
@@ -61,7 +62,7 @@ export default function SignupPage() {
                 </div>
                 <div className="w-full mb-6">
                     <label className="block text-sm font-medium text-white-700 mb-1">
-                        Gender
+                        Gender*
                     </label>
                     <div className="flex items-center space-x-4">
                         <label className="flex items-center">
@@ -98,7 +99,7 @@ export default function SignupPage() {
                 </div>
                 <div className="w-full mb-6">
                     <label htmlFor="phone" className="block text-sm font-medium text-white-700 mb-1">
-                        Phone
+                        Phone*
                     </label>
                     <input
                         type="phone"
