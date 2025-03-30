@@ -1,7 +1,6 @@
 "use client";
 import axios from "axios";
 import { useEffect, useState } from "react";
-import Cardo from "@/components/ordercard";
 import React from "react";
 
 interface MedicineItem {
@@ -174,10 +173,14 @@ function OrdersPage() {
     return currentOrders.map((order) => (
       <div
         key={order._id}
-        className="cursor-pointer"
+        className="cursor-pointer p-4 border border-gray-600 rounded-md bg-gray-800 hover:bg-gray-700 transition"
         onClick={() => handleOrderClick(order)}
       >
-        <Cardo order={order} />
+        <p><span className="font-semibold">Order ID:</span> {order._id}</p>
+        <p><span className="font-semibold">Date:</span> {order.orderDate}</p>
+        <p><span className="font-semibold">Seller:</span> {order.seller}</p>
+        <p><span className="font-semibold">Items:</span> {order.totalItems}</p>
+        <p><span className="font-semibold">Remarks:</span> {order.remarks}</p>
       </div>
     ));
   };
@@ -338,26 +341,63 @@ function OrdersPage() {
       {/* ✅ Dialog for Order Details */}
       {showDialog && selectedOrder && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center">
-          <div className="bg-gray-900 rounded-lg shadow-lg w-96">
-            <div className="bg-gray-800 text-white p-4 rounded-t-lg">
+          <div className="bg-gray-900 rounded-lg shadow-lg w-96 max-h-[90vh] overflow-y-auto">
+            <div className="flex  justify-between items-center bg-gray-800 text-white p-4 rounded-t-lg">
               <h2 className="text-lg font-bold">Order Details</h2>
-            </div>
-            <div className="p-6">
-              <p>
-                <span className="font-semibold">Order ID:</span> {selectedOrder._id}
-              </p>
-              <p>
-                <span className="font-semibold">Seller:</span> {selectedOrder.seller}
-              </p>
-              <p>
-                <span className="font-semibold">Remarks:</span> {selectedOrder.remarks}
-              </p>
               <button
                 onClick={closeDialog}
-                className="mt-4 bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
+                className=" bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
               >
                 Close
               </button>
+            </div>
+            <div className="p-6">
+              {selectedOrder.items.map((item, index) => (
+                <div key={index} className="mb-4">
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Medicine Name"
+                    value={item.name}
+                    onChange={(e) => handleInputChange(e, index)}
+                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
+                  />
+                  <input
+                    type="number"
+                    name="quantity"
+                    placeholder="Quantity"
+                    value={item.quantity}
+                    onChange={(e) => handleInputChange(e, index)}
+                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
+                  />
+                  <input
+                    type="number"
+                    name="price"
+                    placeholder="Price"
+                    value={item.price}
+                    onChange={(e) => handleInputChange(e, index)}
+                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
+                  />
+                  <input
+                    type="text"
+                    name="expiryDate"
+                    placeholder="Expiry Date"
+                    value={item.expiryDate.split("T")[0]} 
+                    onChange={(e) => handleInputChange(e, index)}
+                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
+                  />
+                  <select
+                    name="type"
+                    value={item.type}
+                    onChange={(e) => handleInputChange(e, index)}
+                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
+                  >
+                    <option value="">Select Type</option>
+                    <option value="new">New</option>
+                    <option value="renew">Renew</option>
+                  </select>
+                </div>
+              ))}
             </div>
           </div>
         </div>

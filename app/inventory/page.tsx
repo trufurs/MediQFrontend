@@ -1,8 +1,8 @@
 "use client";
+
+import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useEffect, useState } from "react";
-import Cardi from "@/components/inventorycard";
-import React from "react";
+import CustomDialog from "../../components/CustomDialog";
 
 interface Medicine {
   _id: string;
@@ -13,7 +13,6 @@ interface Medicine {
   precautions: string;
 }
 
-// ✅ Define Inventory Type
 interface InventoryItem {
   _id: string;
   store: string;
@@ -24,79 +23,202 @@ interface InventoryItem {
   updatedAt: string;
 }
 
-function InventoryPage() {
-  // ✅ State Management
+const InventoryPage = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // ✅ Modal States
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
+  const [openDetails, setOpenDetails] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-
-  // ✅ Form States
   const [quantity, setQuantity] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
-  const [medicine, setMedicine] = useState("");
+  const [selectedMedicine, setSelectedMedicine] = useState("");
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
 
   const API_URL = "http://localhost:3000/inventory/";
 
-  // ✅ Fetch Inventory Data with Bearer Token
-  const fetchInventory = async () => {
-    try {
-      setLoading(true);
-      setError(null); // Reset error state
-      const token = localStorage.getItem("auth_token"); // Get token from localStorage
-      const response = await axios.get(API_URL, {
-        headers: { Authorization: `Bearer ${token}` },
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    axios
+      .get(API_URL, { headers: { Authorization: `Bearer ${token}` } })
+      .then((response) => {
+        setInventory(response.data);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching inventory:", error);
+        setLoading(false);
       });
-      setInventory(response.data);
-    } catch (err) {
-      console.error("Error fetching inventory:", err);
-      setError("Failed to fetch inventory. Please try again later.");
-    } finally {
-      setLoading(false);
+  }, []);
+
+  const handleEdit = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setQuantity(item.quantity.toString());
+    setExpiryDate(item.expiryDate.split("T")[0]);
+    setOpenEdit(true);
+  };
+
+  const handleShowDetails = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setOpenDetails(true);
+  };
+
+  const handleAdd = async () => {
+    const token = localStorage.getItem("token");
+
+    try {
+      await axios.post(
+        API_URL,
+        { medicine: selectedMedicine, quantity: Number(quantity), expiryDate },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert("Inventory added successfully!");
+      setOpenAdd(false);
+      window.location.reload();
+    } catch (error) {
+      console.error("Error adding inventory:", error);
     }
   };
 
-  useEffect(() => {
-    fetchInventory();
-  }, []);
+  const handleUpdate = async () => {
+    if (!selectedItem) return;
+    const token = localStorage.getItem("token");
 
-  // ✅ Render Inventory Items
-  const renderInventory = () => {
-    if (inventory.length === 0) {
-      return <p className="text-gray-500">No inventory items found.</p>;
+    try {
+      await axios.put(
+        `${API_URL}${selectedItem._id}`,
+        { quantity: Number(quantity), expiryDate },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert("Inventory updated successfully!");
+      setOpenEdit(false);
+      window.location.reload();
+    } catch (error) {
+      console.error("Error updating inventory:", error);
     }
-
-    return inventory.map((item) => (
-      <Cardi key={item._id} item={item} />
-    ));
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Inventory</h1>
+    <div className="p-6 bg-black min-h-screen text-white">
+      <h1 className="text-3xl font-bold mb-6">Inventory Management</h1>
 
-      {/* ✅ Loading State */}
-      {loading && <p className="text-blue-500">Loading inventory...</p>}
-
-      {/* ✅ Error State */}
-      {error && <p className="text-red-500">{error}</p>}
-
-      {/* ✅ Inventory List */}
-      {!loading && !error && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {renderInventory()}
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="loader"></div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {inventory.map((item) => (
+            <div
+              key={item._id}
+              className="bg-gray-800 border border-gray-700 rounded-lg shadow-md p-4"
+            >
+              <h2 className="text-lg font-semibold">{item.medicine.name}</h2>
+              <p className="text-sm">Quantity: {item.quantity}</p>
+              <p className="text-sm">Expiry Date: {item.expiryDate.split("T")[0]}</p>
+              <div className="flex gap-2 mt-4">
+                <button
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                  onClick={() => handleEdit(item)}
+                >
+                  Edit
+                </button>
+                <button
+                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                  onClick={() => handleShowDetails(item)}
+                >
+                  Show Details
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* ✅ Add/Edit Modals (Placeholder for future implementation) */}
-      {openAdd && <div>Add Modal</div>}
-      {openEdit && <div>Edit Modal</div>}
+      <button
+        className="fixed bottom-4 right-4 bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600"
+        onClick={() => setOpenAdd(true)}
+      >
+        +
+      </button>
+
+      <CustomDialog open={openAdd} onClose={() => setOpenAdd(false)} title="Add Inventory">
+        <div>
+          <select
+            value={selectedMedicine}
+            onChange={(e) => setSelectedMedicine(e.target.value)}
+            className="w-full p-2 mb-4 border border-gray-700 bg-gray-800 text-white rounded"
+          >
+            <option value="" disabled>
+              Select Medicine
+            </option>
+            {medicines.map((medicine) => (
+              <option key={medicine._id} value={medicine._id}>
+                {medicine.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            placeholder="Quantity"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            className="w-full p-2 mb-4 border border-gray-700 bg-gray-800 text-white rounded"
+          />
+          <input
+            type="date"
+            value={expiryDate}
+            onChange={(e) => setExpiryDate(e.target.value)}
+            className="w-full p-2 mb-4 border border-gray-700 bg-gray-800 text-white rounded"
+          />
+          <button
+            onClick={handleAdd}
+            className="w-full p-2 bg-green-500 text-white rounded hover:bg-green-600"
+          >
+            Add Inventory
+          </button>
+        </div>
+      </CustomDialog>
+
+      <CustomDialog open={openEdit} onClose={() => setOpenEdit(false)} title="Edit Inventory">
+        <div>
+          <input
+            type="text"
+            placeholder="Quantity"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            className="w-full p-2 mb-4 border border-gray-700 bg-gray-800 text-white rounded"
+          />
+          <input
+            type="date"
+            value={expiryDate}
+            onChange={(e) => setExpiryDate(e.target.value)}
+            className="w-full p-2 mb-4 border border-gray-700 bg-gray-800 text-white rounded"
+          />
+          <button
+            onClick={handleUpdate}
+            className="w-full p-2 bg-green-500 text-white rounded hover:bg-green-600"
+          >
+            Update
+          </button>
+        </div>
+      </CustomDialog>
+
+      <CustomDialog open={openDetails} onClose={() => setOpenDetails(false)} title="Inventory Details">
+        {selectedItem && (
+          <div>
+            <h2 className="text-lg font-semibold mb-2">{selectedItem.medicine.name}</h2>
+            <p><strong>Composition:</strong> {selectedItem.medicine.composition}</p>
+            <p><strong>Manufacturer:</strong> {selectedItem.medicine.manufacturer}</p>
+            <p><strong>Usage:</strong> {selectedItem.medicine.usage}</p>
+            <p><strong>Precautions:</strong> {selectedItem.medicine.precautions}</p>
+            <p><strong>Quantity:</strong> {selectedItem.quantity}</p>
+            <p><strong>Expiry Date:</strong> {selectedItem.expiryDate.split("T")[0]}</p>
+          </div>
+        )}
+      </CustomDialog>
     </div>
   );
-}
+};
 
 export default InventoryPage;

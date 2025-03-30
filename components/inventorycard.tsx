@@ -15,49 +15,53 @@ interface InventoryItem {
   medicine: Medicine;
   quantity: number;
   expiryDate: string;
-  createdAt: string;
-  updatedAt: string;
+  sellerName: string;
 }
 
 interface CardiProps {
   item: InventoryItem;
+  onEdit: () => void;
+  onDelete: (id: string) => void;
 }
 
-const Cardi: React.FC<CardiProps> = ({ item }) => {
+const Cardi: React.FC<CardiProps> = ({ item, onEdit, onDelete }) => {
   return (
     <div className="bg-white shadow-md rounded-lg p-4 hover:shadow-lg transition-shadow duration-300">
-      {/* Medicine Name */}
-      <h2 className="text-lg font-bold text-gray-800 mb-2">{item.medicine.name}</h2>
-
-      {/* Manufacturer */}
-      <p className="text-sm text-gray-600 mb-1">
+      {/* Medicine Details */}
+      <h2 className="text-lg font-bold text-gray-800">{item.medicine.name}</h2>
+      <p className="text-sm text-gray-600">
+        <span className="font-semibold">Composition:</span> {item.medicine.composition}
+      </p>
+      <p className="text-sm text-gray-600">
         <span className="font-semibold">Manufacturer:</span> {item.medicine.manufacturer}
       </p>
 
-      {/* Composition */}
-      <p className="text-sm text-gray-600 mb-1">
-        <span className="font-semibold">Composition:</span> {item.medicine.composition}
-      </p>
-
-      {/* Quantity */}
-      <p className="text-sm text-gray-600 mb-1">
+      {/* Inventory Details */}
+      <p className="text-sm text-gray-600">
         <span className="font-semibold">Quantity:</span> {item.quantity}
       </p>
-
-      {/* Expiry Date */}
-      <p className="text-sm text-gray-600 mb-1">
+      <p className="text-sm text-gray-600">
         <span className="font-semibold">Expiry Date:</span> {new Date(item.expiryDate).toLocaleDateString()}
       </p>
-
-      {/* Usage */}
-      <p className="text-sm text-gray-600 mb-1">
-        <span className="font-semibold">Usage:</span> {item.medicine.usage}
-      </p>
-
-      {/* Precautions */}
       <p className="text-sm text-gray-600">
-        <span className="font-semibold">Precautions:</span> {item.medicine.precautions}
+        <span className="font-semibold">Seller:</span> {item.sellerName}
       </p>
+
+      {/* Action Buttons */}
+      <div className="mt-4 flex justify-between">
+        <button
+          onClick={onEdit}
+          className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition"
+        >
+          Edit
+        </button>
+        <button
+          onClick={() => onDelete(item._id)}
+          className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition"
+        >
+          Delete
+        </button>
+      </div>
     </div>
   );
 };
