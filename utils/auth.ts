@@ -30,9 +30,9 @@ export const register = async (name:string , email: string, password: string , g
     const res = await fetch("http://localhost:3000/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({name, email, password , gender , phone }),
     });
 
-    if (!res.ok) throw new Error("Registration failed");
-    return await res.json();
+    if (!res.ok) return false;
+    return await true;
 }

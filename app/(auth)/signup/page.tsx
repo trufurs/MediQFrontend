@@ -1,17 +1,24 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import { register } from "@/utils/auth";
 import Form from 'next/form'
 
 
 export default function SignupPage() {
     const [user, setUser] = useState("");
-    const handleSignup = (event: React.FormEvent<HTMLFormElement>) => {
+    const handleSignup = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const form = event.target as HTMLFormElement;
 
-        register(form.namee.value ,form.email.value, form.password.value , form.gender.value , form.phone.value);
+        const boo = await register(form.namee.value ,form.email.value, form.password.value , form.gender.value , form.phone.value)
+        if (boo) {
+            alert("User Created Successfully")
+            redirect("/login")
+        } else {
+            alert("Error creating user")
+        }
+        // const formData = new FormData(form);
     }
     return (
         <div className="flex flex-row items-center justify-center">
