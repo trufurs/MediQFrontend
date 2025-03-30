@@ -21,6 +21,7 @@ export const login = async (email: string, password: string) => {
         localStorage.setItem("user_data", JSON.stringify(userData)); // Store user data in localStorage
     }
     console.log("User data stored in localStorage:", localStorage.getItem("user_data"));
+    window.dispatchEvent(new Event("storage")); // Trigger the storage event manually
     return true // ✅ Store token in localStorage
 };
 
