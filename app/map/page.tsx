@@ -6,6 +6,7 @@ import L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import axios from 'axios';
 
 // Fix Leaflet's default icon issue
 delete L.Icon.Default.prototype.options.className;
@@ -30,7 +31,87 @@ function MapPage() {
   const [places, setPlaces] = useState<{ name: string; lat: number; lng: number }[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [placeType, setPlaceType] = useState<'all' | 'hospital' | 'pharmacy'>('all');
+
+  const fetchPlacesByCity = useCallback(async () => {
+    if (!city) {
+      setError('Please enter a city name.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const query = `http://localhost:3000/address/${city}`;
+      const response = await axios.get(query);
+      if (!response || !response.data) {
+        setError('Failed to fetch places for the city.');
+        return;
+      }
+      const data = response.data;
+      if(!data || data.message === 'No places found') {
+        setError('No places found for the specified city.');
+        return;
+      }
+
+      // Map the data to extract relevant fields for markers
+      setPlaces(
+        data.map((place: {latitude:number , longitude:number ,store : { name : string}}) => ({
+          name: place.store.name,
+          lat: place.latitude,
+          lng: place.longitude,
+        })).concat({
+          name: 'Your Location',
+          lat: location[0],
+          lng: location[1],
+        })
+      );
+      
+    } catch (err) {
+      console.error('Error fetching places by city:', err);
+      setError('Failed to fetch places. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  }, [city]);
+
+  const fetchPlacesByCurrentLocation = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const query = `http://localhost:3000/address/${location[0]}/${location[1]}`;
+      const response = await axios.get(query);
+
+      console.log('Response from API:', response.data);
+      // Check if the response contains valid data
+      if (!response.data || response.data.message === 'No places found') {
+        setError('No places found.');
+        return;
+      }
+
+      const data = response.data;
+      console.log('Places fetched by current location:', data);
+
+      // Map the data to extract relevant fields for markers
+      setPlaces(
+        [
+          ...data.map((place: { latitude: number; longitude: number; store: { name: string } }) => ({
+            name: place.store.name,
+            lat: place.latitude,
+            lng: place.longitude,
+          })),
+          {
+            name: 'Your Location',
+            lat: location[0],
+            lng: location[1],
+          },
+        ]
+      );
+    } catch (err) {
+      console.error('Error fetching places by current location:', err);
+      setError('Failed to fetch places. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  }, [location]);
 
   useEffect(() => {
     // Ensure this runs only on the client side
@@ -57,37 +138,6 @@ function MapPage() {
     }
   }, []);
 
-  const fetchPlaces = useCallback(async () => {
-    setLoading(true);
-    try {
-      const query = city
-        ? `http://localhost:3000/address/${city}`
-        : `http://localhost:3000/address/${location[0]}/${location[1]}`;
-      const response = await fetch(query);
-      if (!response.ok) {
-        setError('Failed to fetch places');
-      }
-      const data = await response.json();
-      setPlaces((prevPlaces) => [
-        ...prevPlaces,
-        ...data.results.map((place: { name: string; geometry: { location: { lat: number; lng: number } } }) => ({
-          name: place.name,
-          lat: place.geometry.location.lat,
-          lng: place.geometry.location.lng,
-        })),
-      ]);
-    } catch (err) {
-      console.error('Error fetching places:', err);
-      setError('Failed to fetch places. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  }, [location, city, placeType]);
-
-  useEffect(() => {
-    fetchPlaces();
-  }, [fetchPlaces]);
-
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Nearby Hospitals and Pharmacies</h1>
@@ -104,13 +154,21 @@ function MapPage() {
           />
         </label>
         {error && <p className="text-red-500 mb-4">{error}</p>}
-      {loading && <p className="text-blue-500 mb-4">Loading places...</p>}
-        <button
-          onClick={fetchPlaces}
-          className="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-        >
-          Search
-        </button>
+        {loading && <p className="text-blue-500 mb-4">Loading places...</p>}
+        <div className="flex gap-4">
+          <button
+            onClick={fetchPlacesByCity}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          >
+            Search by City
+          </button>
+          <button
+            onClick={fetchPlacesByCurrentLocation}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+          >
+            Search by Current Location
+          </button>
+        </div>
       </div>
       <div className="h-[400px] w-full">
         <MapContainer
