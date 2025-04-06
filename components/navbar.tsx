@@ -83,13 +83,23 @@ const Navbar = () => {
               {userName} ▼
             </button>
             {isMenuOpen && (
-              <div className="hidden md:flex absolute right-0 mt-2 w-40 bg-gray-700 rounded-md shadow-lg">
+              <div className="hidden md:flex absolute right-0 mt-2 w-60 bg-gray-700 rounded-md shadow-lg">
                 <Link
                   href="/profile"
                   className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
                 >
                   Profile
                 </Link>
+                {user === "admin" && (
+                  <>
+                  <Link
+                    href="/requests"
+                    className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
+                  >
+                    Requests
+                  </Link>
+                  </>
+                )}
                 <button
                   onClick={handleLogout}
                   className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
@@ -121,6 +131,7 @@ const Navbar = () => {
             <Link href="/map" className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400">
               Map 🗺️
             </Link>
+            
             {user === "store-owner" && (
               <>
                 <Link
@@ -137,6 +148,16 @@ const Navbar = () => {
                 </Link>
               </>
             )}
+            {user === "admin" && (
+              <>
+                  <Link
+                    href="/requests"
+                    className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
+                  >
+                    Requests
+                  </Link>
+              </>
+                )}
             {user === "temp" ? (
               <>
                 <Link
