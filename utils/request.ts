@@ -12,7 +12,23 @@ export const fetchRequests = async (token: string) => {
 
 export const addRequest = async (token: string, newRequest: any) => {
   if (!token) throw new Error("Authentication token is missing.");
-  const response = await axios.post(API_URL, newRequest, {
+  const data = {
+    owner: newRequest.owner,
+    name: newRequest.name,
+    licenseNumber: newRequest.licenseNumber,
+    contact: newRequest.contact,
+    address: {
+      latitude: newRequest.address.latitude,
+      longitude: newRequest.address.longitude,
+      street: newRequest.address.street,
+      city: newRequest.address.city,
+      state: newRequest.address.state,
+      postalCode: newRequest.address.postalCode,
+      country: newRequest.address.country,
+    }
+  }
+  console.log("New Request:", data);
+  const response = await axios.post(API_URL, data, {
     headers: { Authorization: `Bearer ${token}` },
   });
   return response.data;
@@ -24,9 +40,12 @@ export const updateRequestStatus = async (
   status: string
 ) => {
   if (!token) throw new Error("Authentication token is missing.");
-  await axios.patch(
+  const data = {
+    status: status,
+    };
+  await axios.put(
     `${API_URL}${requestId}`,
-    { status },
+    data,
     {
       headers: { Authorization: `Bearer ${token}` },
     }

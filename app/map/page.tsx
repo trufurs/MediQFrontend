@@ -33,37 +33,49 @@ function MapPage() {
   const [placeType, setPlaceType] = useState<'all' | 'hospital' | 'pharmacy'>('all');
 
   useEffect(() => {
-    // Request user's location
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLocation([position.coords.latitude, position.coords.longitude]);
-      },
-      (error) => {
-        console.error('Error fetching location:', error);
-        setError('Unable to fetch your location. Please enter a city manually.');
-        setLocation([51.505, -0.09]); // Default fallback location
-      }
-    );
+    // Ensure this runs only on the client side
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userLatLng: [number, number] = [position.coords.latitude, position.coords.longitude];
+          setLocation(userLatLng);
+
+          // Add user's location to the places list
+          setPlaces((prevPlaces) => [
+            ...prevPlaces,
+            { name: 'Your Location', lat: userLatLng[0], lng: userLatLng[1] },
+          ]);
+        },
+        (error) => {
+          console.error('Error fetching location:', error);
+          setError('Unable to fetch your location. Please enter a city manually.');
+          setLocation([51.505, -0.09]); // Default fallback location
+        }
+      );
+    } else {
+      setError('Geolocation is not supported by your browser.');
+    }
   }, []);
 
   const fetchPlaces = useCallback(async () => {
     setLoading(true);
     try {
       const query = city
-        ? `/api/places?city=${city}&type=${placeType !== 'all' ? placeType : ''}`
-        : `/api/places?lat=${location[0]}&lng=${location[1]}&type=${placeType !== 'all' ? placeType : ''}`;
+        ? `http://localhost:3000/address/${city}`
+        : `http://localhost:3000/address/${location[0]}/${location[1]}`;
       const response = await fetch(query);
       if (!response.ok) {
         setError('Failed to fetch places');
       }
       const data = await response.json();
-      setPlaces(
-        data.results.map((place: { name: string; geometry: { location: { lat: number; lng: number } } }) => ({
+      setPlaces((prevPlaces) => [
+        ...prevPlaces,
+        ...data.results.map((place: { name: string; geometry: { location: { lat: number; lng: number } } }) => ({
           name: place.name,
           lat: place.geometry.location.lat,
           lng: place.geometry.location.lng,
-        }))
-      );
+        })),
+      ]);
     } catch (err) {
       console.error('Error fetching places:', err);
       setError('Failed to fetch places. Please try again later.');
