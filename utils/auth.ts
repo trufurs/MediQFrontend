@@ -1,6 +1,7 @@
 // utils/auth.ts
+const host = process.env.backend; // Define the host URL
 export const login = async (email: string, password: string) => {
-    const res = await fetch("http://localhost:3000/auth/login", {
+    const res = await fetch(`${host}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -12,7 +13,7 @@ export const login = async (email: string, password: string) => {
     localStorage.setItem("auth_token", token);
 
     // Optionally, you can also store user data in localStorage or sessionStorage
-    const resUser = await fetch("http://localhost:3000/user/", {
+    const resUser = await fetch(`${host}/user/`, {
         method: "GET",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
     });
@@ -27,7 +28,7 @@ export const login = async (email: string, password: string) => {
 
 
 export const register = async (name:string , email: string, password: string , gender:string , phone:string) => {
-    const res = await fetch("http://localhost:3000/auth/register", {
+    const res = await fetch(`${host}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({name, email, password , gender , phone }),

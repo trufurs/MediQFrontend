@@ -3,7 +3,7 @@ import React from 'react'
 export default async function GetUserDetails() {
     const token = localStorage.getItem("auth_token");
     if(token){
-        const resUser = await fetch("http://localhost:3000/user/", {
+        const resUser = await fetch(`${process.env.backend}/user/`, {
             method: "GET",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         });

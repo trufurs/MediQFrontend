@@ -38,8 +38,8 @@ function OrdersPage() {
     remarks: "",
     items: [{ name: "", quantity: 0, price: 0, expiryDate: "", type: "" }],
   });
-
-  const API_URL = "http://localhost:3000/order/";
+  const host = `${process.env.backend}`;
+  const API_URL = `${host}/order/`;
   const ORDERS_PER_PAGE = 6;
 
   // ✅ Fetch Orders Data with Bearer Token

@@ -25,6 +25,8 @@ function MapUpdater({ location }: { location: [number, number] }) {
   return null;
 }
 
+const host = `${process.env.backend}`;
+
 function MapPage() {
   const [location, setLocation] = useState<[number, number]>([26.907524, 75.739639]); // Default location
   const [city, setCity] = useState('');
@@ -40,7 +42,7 @@ function MapPage() {
     setLoading(true);
     setError('');
     try {
-      const query = `http://localhost:3000/address/${city}`;
+      const query = `${host}/address/${city}`;
       const response = await axios.get(query);
       if (!response || !response.data) {
         setError('Failed to fetch places for the city.');
@@ -77,7 +79,7 @@ function MapPage() {
     setLoading(true);
     setError('');
     try {
-      const query = `http://localhost:3000/address/${location[0]}/${location[1]}`;
+      const query = `${host}/address/${location[0]}/${location[1]}`;
       const response = await axios.get(query);
 
       console.log('Response from API:', response.data);

@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import CustomDialog from "../../components/CustomDialog";
 
+const host = `${process.env.backend}`;
+
 interface Medicine {
   _id: string;
   name: string;
@@ -35,7 +37,7 @@ const InventoryPage = () => {
   const [selectedMedicine, setSelectedMedicine] = useState("");
   const [medicines, setMedicines] = useState<Medicine[]>([]);
 
-  const API_URL = "http://localhost:3000/inventory/";
+  const API_URL = `${host}/inventory/`;
 
   useEffect(() => {
     const token = localStorage.getItem("auth_token");
