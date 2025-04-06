@@ -1,5 +1,7 @@
+import { EnvVars } from "next/dist/build/turborepo-access-trace/types";
+
 // utils/auth.ts
-const host = process.env.backend; // Define the host URL
+const host = `${process.env.NEXT_PUBLIC_BACKEND}`; // Define the host URL
 export const login = async (email: string, password: string) => {
     const res = await fetch(`${host}/auth/login`, {
         method: "POST",

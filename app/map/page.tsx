@@ -25,7 +25,7 @@ function MapUpdater({ location }: { location: [number, number] }) {
   return null;
 }
 
-const host = `${process.env.backend}`;
+const host = `${process.env.NEXT_PUBLIC_BACKEND}`;
 
 function MapPage() {
   const [location, setLocation] = useState<[number, number]>([26.907524, 75.739639]); // Default location

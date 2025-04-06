@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import CustomDialog from "../../components/CustomDialog";
 
-const host = `${process.env.backend}`;
+const host = `${process.env.NEXT_PUBLIC_BACKEND}`;
 
 interface Medicine {
   _id: string;

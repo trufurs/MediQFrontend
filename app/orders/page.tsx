@@ -38,7 +38,7 @@ function OrdersPage() {
     remarks: "",
     items: [{ name: "", quantity: 0, price: 0, expiryDate: "", type: "" }],
   });
-  const host = `${process.env.backend}`;
+  const host = `${process.env.NEXT_PUBLIC_BACKEND}`;
   const API_URL = `${host}/order/`;
   const ORDERS_PER_PAGE = 6;
 
