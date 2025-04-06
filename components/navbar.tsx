@@ -57,7 +57,7 @@ const Navbar = () => {
       {/* Navigation Links */}
       <div className="hidden md:flex space-x-6 navb p-1.5 px-4">
         <Link href="/" className="hover:text-blue-400 ">Home</Link>
-        <Link href="/mediciene" className="hover:text-blue-400">Mediciene</Link>
+        <Link href="/medicine" className="hover:text-blue-400">Medicine</Link>
         <Link href="/map" className="hover:text-blue-400">Map 🗺️</Link>
         {user === "store-owner" && (
           <>
@@ -125,8 +125,8 @@ const Navbar = () => {
             <Link href="/" className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400">
               Home
             </Link>
-            <Link href="/mediciene" className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400">
-              Mediciene
+            <Link href="/medicine" className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400">
+              Medicine
             </Link>
             <Link href="/map" className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400">
               Map 🗺️

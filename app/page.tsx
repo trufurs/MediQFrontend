@@ -46,7 +46,7 @@ export default function HomePage() {
                 title="Medicine Information" 
                 description="Search for medicines, compare alternatives, and get basic details." 
                 button="Learn More"
-                onClick={() => router.push("/mediciene")} // Use router.push
+                onClick={() => router.push("/medicine")} // Use router.push
               />
               <FeatureCard 
                 src="/store.jpg" 
