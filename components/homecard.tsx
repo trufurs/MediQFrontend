@@ -1,7 +1,3 @@
-import { on } from 'events';
-import Image from 'next/image';
-
-
 
 interface FeatureCardProps {
   src: string;
