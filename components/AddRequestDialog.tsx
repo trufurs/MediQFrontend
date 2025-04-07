@@ -11,14 +11,12 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { addRequest } from "@/utils/request";
 
-const markerIcon = require("leaflet/dist/images/marker-icon.png");
-const markerShadow = require("leaflet/dist/images/marker-shadow.png");
 
 // Fix for Leaflet marker icon
 const defaultIcon = L.icon({
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-  iconAnchor: [12, 41],
+    iconUrl: 'marker-icon.ded0b320.png', // Path to your image in the public folder
+    shadowUrl: 'marker-shadow.071016c8.png', // Path to your shadow image in the public folder
+    iconAnchor: [12, 41],
 });
 
 L.Marker.prototype.options.icon = defaultIcon;

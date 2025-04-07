@@ -1,6 +1,5 @@
 "use client";
 import FeatureCard from "@/components/homecard";
-import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation"; // Import useRouter
 import AddRequestDialog from "@/components/AddRequestDialogWrapper";

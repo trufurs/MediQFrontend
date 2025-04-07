@@ -1,12 +1,10 @@
 "use client";
-import { useState } from "react";
-import { redirect, useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
 import { login } from "@/utils/auth";
 import Form from 'next/form'
 
 
 export default  function LoginPage() {
-    const [user, setUser] = useState("");
     const handleLogin =  async(event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const form = event.target as HTMLFormElement;

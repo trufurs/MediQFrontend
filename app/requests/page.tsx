@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import React from "react";
-import { fetchRequests, addRequest, updateRequestStatus } from "@/utils/request";
+import { fetchRequests, updateRequestStatus } from "@/utils/request";
 import CustomDialog from "@/components/CustomDialog"; // Import CustomDialog
 import dynamic from "next/dynamic";
 const AddRequestDialog = dynamic(() => import("@/components/AddRequestDialog"), {   
@@ -36,21 +36,6 @@ function RequestsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [newRequest, setNewRequest] = useState({
-    owner: "",
-    name: "",
-    licenseNumber: "",
-    contact: "",
-    address: {
-      latitude: 0,
-      longitude: 0,
-      street: "",
-      city: "",
-      state: "",
-      postalCode: "",
-      country: "",
-    },
-  });
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null); // State for selected request
   const [statusFilter, setStatusFilter] = useState<string>("all"); // State for status filter
 
@@ -73,38 +58,6 @@ function RequestsPage() {
   useEffect(() => {
     fetchRequestsHandler();
   }, []);
-
-  // Handle Add Request
-  const handleAddRequest = async () => {
-    try {
-      const token = localStorage.getItem("auth_token");
-      if (!newRequest.owner || !newRequest.name || !newRequest.licenseNumber) {
-        alert("Please fill in all required fields.");
-        return;
-      }
-      const data = await addRequest(token!, newRequest);
-      setRequests((prevRequests) => [...prevRequests, data]);
-      setShowAddDialog(false);
-      setNewRequest({
-        owner: "",
-        name: "",
-        licenseNumber: "",
-        contact: "",
-        address: {
-          latitude: 0,
-          longitude: 0,
-          street: "",
-          city: "",
-          state: "",
-          postalCode: "",
-          country: "",
-        },
-      });
-    } catch (err) {
-      console.error("Error adding request:", err);
-      alert("Failed to add request. Please try again.");
-    }
-  };
 
   // Handle Admin Action (Verify/Reject)
   const handleAdminAction = async (requestId: string, status: string) => {

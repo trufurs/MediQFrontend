@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import axios from "axios";
 import { useEffect, useState } from "react";
@@ -79,6 +80,7 @@ function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ✅ Handle Add Order Form Submission

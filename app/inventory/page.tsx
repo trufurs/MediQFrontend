@@ -35,6 +35,7 @@ const InventoryPage = () => {
   const [quantity, setQuantity] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [selectedMedicine, setSelectedMedicine] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [medicines, setMedicines] = useState<Medicine[]>([]);
 
   const API_URL = `${host}/inventory/`;
@@ -51,6 +52,7 @@ const InventoryPage = () => {
         console.error("Error fetching inventory:", error);
         setLoading(false);
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleEdit = (item: InventoryItem) => {
