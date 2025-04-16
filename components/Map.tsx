@@ -1,12 +1,10 @@
 "use client";
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useReducer } from 'react';
 import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
 import axios from 'axios';
-
-
 
 // Fix for Leaflet marker icon
 const defaultIcon = L.icon({
@@ -35,36 +33,52 @@ function MapUpdater({ location }: { location: [number, number] }) {
 
 const host = `${process.env.NEXT_PUBLIC_BACKEND}`;
 
+type State = {
+  places: Array<{ name: string; lat: number; lng: number }>;
+  loading: boolean;
+  error: string;
+};
+
+type Action =
+  | { type: 'SET_PLACES'; payload: Array<{ name: string; lat: number; lng: number }> }
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_ERROR'; payload: string };
+
+const initialState: State = {
+  places: [],
+  loading: false,
+  error: '',
+};
+
+const reducer = (state: State, action: Action): State => {
+  switch (action.type) {
+    case 'SET_PLACES':
+      return { ...state, places: action.payload };
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+    case 'SET_ERROR':
+      return { ...state, error: action.payload };
+    default:
+      return state;
+  }
+};
+
 function MapPage() {
   const [location, setLocation] = useState<[number, number]>([26.907524, 75.739639]); // Default location
   const [city, setCity] = useState('');
-  const [places, setPlaces] = useState<{ name: string; lat: number; lng: number }[]>([]);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [state, dispatch] = useReducer(reducer, initialState);
 
   const fetchPlacesByCity = useCallback(async () => {
-    if (!city) {
-      setError('Please enter a city name.');
-      return;
-    }
-    setLoading(true);
-    setError('');
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: '' });
     try {
       const query = `${host}/address/${city}`;
       const response = await axios.get(query);
-      if (!response || !response.data) {
-        setError('Failed to fetch places for the city.');
-        return;
-      }
       const data = response.data;
-      if(!data || data.message === 'No places found') {
-        setError('No places found for the specified city.');
-        return;
-      }
 
-      // Map the data to extract relevant fields for markers
-      setPlaces(
-        data.map((place: {latitude:number , longitude:number ,store : { name : string}}) => ({
+      dispatch({
+        type: 'SET_PLACES',
+        payload: data.map((place: { latitude: number; longitude: number; store: { name: string } }) => ({
           name: place.store.name,
           lat: place.latitude,
           lng: place.longitude,
@@ -72,20 +86,19 @@ function MapPage() {
           name: 'Your Location',
           lat: location[0],
           lng: location[1],
-        })
-      );
-      
+        }),
+      });
     } catch (err) {
       console.error('Error fetching places by city:', err);
-      setError('Failed to fetch places. Please try again later.');
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to fetch places. Please try again later.' });
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [city]);
+  }, [city, location]); // 'location' is still a dependency
 
   const fetchPlacesByCurrentLocation = useCallback(async () => {
-    setLoading(true);
-    setError('');
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'SET_ERROR', payload: '' });
     try {
       const query = `${host}/address/${location[0]}/${location[1]}`;
       const response = await axios.get(query);
@@ -93,7 +106,7 @@ function MapPage() {
       console.log('Response from API:', response.data);
       // Check if the response contains valid data
       if (!response.data || response.data.message === 'No places found') {
-        setError('No places found.');
+        dispatch({ type: 'SET_ERROR', payload: 'No places found.' });
         return;
       }
 
@@ -101,8 +114,9 @@ function MapPage() {
       console.log('Places fetched by current location:', data);
 
       // Map the data to extract relevant fields for markers
-      setPlaces(
-        [
+      dispatch({
+        type: 'SET_PLACES',
+        payload: [
           ...data.map((place: { latitude: number; longitude: number; store: { name: string } }) => ({
             name: place.store.name,
             lat: place.latitude,
@@ -113,13 +127,13 @@ function MapPage() {
             lat: location[0],
             lng: location[1],
           },
-        ]
-      );
+        ],
+      });
     } catch (err) {
       console.error('Error fetching places by current location:', err);
-      setError('Failed to fetch places. Please try again later.');
+      dispatch({ type: 'SET_ERROR', payload: 'Failed to fetch places. Please try again later.' });
     } finally {
-      setLoading(false);
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [location]);
 
@@ -132,20 +146,24 @@ function MapPage() {
           setLocation(userLatLng);
 
           // Add user's location to the places list
-          setPlaces((prevPlaces) => [
-            ...prevPlaces,
-            { name: 'Your Location', lat: userLatLng[0], lng: userLatLng[1] },
-          ]);
+          dispatch({
+            type: 'SET_PLACES',
+            payload: [
+              ...state.places,
+              { name: 'Your Location', lat: userLatLng[0], lng: userLatLng[1] },
+            ],
+          });
         },
         (error) => {
           console.error('Error fetching location:', error);
-          setError('Unable to fetch your location. Please enter a city manually.');
+          dispatch({ type: 'SET_ERROR', payload: 'Unable to fetch your location. Please enter a city manually.' });
           setLocation([51.505, -0.09]); // Default fallback location
         }
       );
     } else {
-      setError('Geolocation is not supported by your browser.');
+      dispatch({ type: 'SET_ERROR', payload: 'Geolocation is not supported by your browser.' });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -163,8 +181,8 @@ function MapPage() {
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
           />
         </label>
-        {error && <p className="text-red-500 mb-4">{error}</p>}
-        {loading && <p className="text-blue-500 mb-4">Loading places...</p>}
+        {state.error && <p className="text-red-500 mb-4">{state.error}</p>}
+        {state.loading && <p className="text-blue-500 mb-4">Loading places...</p>}
         <div className="flex gap-4">
           <button
             onClick={fetchPlacesByCity}
@@ -192,7 +210,7 @@ function MapPage() {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           />
-          {places.map((place, index) => (
+          {state.places.map((place, index) => (
             <Marker key={index} position={[place.lat, place.lng]}>
               <Popup>{place.name}</Popup>
             </Marker>

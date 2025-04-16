@@ -41,7 +41,7 @@ interface NewRequest {
 
 interface AddRequestDialogProps {
   onClose: () => void;
-  onRequestAdded: (request: any) => void;
+  onRequestAdded: (request: unknown) => void;
 }
 
 const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
