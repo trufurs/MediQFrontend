@@ -41,7 +41,8 @@ interface NewRequest {
 
 interface AddRequestDialogProps {
   onClose: () => void;
-  onRequestAdded: (request: unknown) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onRequestAdded: (request: any) => void;
 }
 
 const AddRequestDialog: React.FC<AddRequestDialogProps> = ({

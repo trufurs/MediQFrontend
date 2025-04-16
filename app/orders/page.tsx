@@ -3,6 +3,7 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 import React from "react";
+import AddMedicineDialog from "@/components/AddMedicineDialog"; // Import the dialog component
 
 interface MedicineItem {
   name: string;
@@ -42,6 +43,14 @@ function OrdersPage() {
   const host = `${process.env.NEXT_PUBLIC_BACKEND}`;
   const API_URL = `${host}/order/`;
   const ORDERS_PER_PAGE = 6;
+
+  // ✅ Add Medicine Dialog States
+  const [showAddMedicineDialog, setShowAddMedicineDialog] = useState(false);
+
+  const handleMedicineAdded = (medicine: any) => {
+    console.log("New medicine added:", medicine);
+    // Perform any action with the new medicine (e.g., update state or refresh data)
+  };
 
   // ✅ Fetch Orders Data with Bearer Token
   const fetchOrders = async () => {
@@ -209,7 +218,21 @@ function OrdersPage() {
         >
           Add Order
         </button>
+        <button
+          onClick={() => setShowAddMedicineDialog(true)} // Open AddMedicineDialog
+          className="bg-indigo-600 text-white px-4 py-2 rounded-md shadow-md hover:bg-indigo-700 transition"
+        >
+          Add Medicine
+        </button>
       </div>
+
+      {/* ✅ Add Medicine Dialog */}
+      {showAddMedicineDialog && (
+        <AddMedicineDialog
+          onClose={() => setShowAddMedicineDialog(false)} // Close the dialog
+          onMedicineAdded={handleMedicineAdded} // Handle the added medicine
+        />
+      )}
 
       {/* ✅ Add Order Dialog */}
       {showAddDialog && (

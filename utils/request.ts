@@ -10,6 +10,7 @@ export const fetchRequests = async (token: string) => {
   return response.data;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const addRequest = async (token: string, newRequest: any) => {
   if (!token) throw new Error("Authentication token is missing.");
   const data = {
