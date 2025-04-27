@@ -2,6 +2,7 @@
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 const Navbar = () => {
   const [user, setUser] = useState<string>("temp");
@@ -44,6 +45,8 @@ const Navbar = () => {
     localStorage.removeItem("auth_token");
     setUserName("Guest");
     setUser("temp");
+    setIsMenuOpen(false); // Close the menu on logout
+    redirect("/"); // Redirect to main page
   };
 
   return (
@@ -83,7 +86,7 @@ const Navbar = () => {
               {userName} ▼
             </button>
             {isMenuOpen && (
-              <div className="hidden md:flex absolute right-0 mt-2 w-60 bg-gray-700 rounded-md shadow-lg">
+              <div className="hidden md:flex absolute right-0 mt-2 whitespace-pre-wrap w-auto w:max-60 bg-gray-700 rounded-md shadow-lg">
                 <Link
                   href="/profile"
                   className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
