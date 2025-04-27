@@ -41,21 +41,21 @@ export default function HomePage() {
 
             <section id="features" className="features grid grid-cols-1 md:grid-cols-3 gap-10 p-10 w-full ">
               <FeatureCard
-                src="/medicine.jpg" 
+                src="/medicine.png" 
                 title="Medicine Information" 
                 description="Search for medicines, compare alternatives, and get basic details." 
                 button="Learn More"
                 onClick={() => router.push("/medicine")} // Use router.push
               />
               <FeatureCard 
-                src="/store.jpg" 
+                src="/store.png" 
                 title="Store Management" 
                 description="Manage your medical store inventory, orders, and reminders." 
                 button="Get Started"
                 onClick={handleStoreManagementClick}
               />
               <FeatureCard 
-                src="/hospital.jpg" 
+                src="/hospital.png" 
                 title="Nearby Facilities" 
                 description="Find nearby hospitals and medical stores with real-time location tracking." 
                 button="Find Now"
