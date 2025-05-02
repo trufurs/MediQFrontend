@@ -1,4 +1,3 @@
-import { EnvVars } from "next/dist/build/turborepo-access-trace/types";
 
 // utils/auth.ts
 const host = `${process.env.NEXT_PUBLIC_BACKEND}`; // Define the host URL

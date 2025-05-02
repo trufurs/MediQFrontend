@@ -1,4 +1,4 @@
-import React from 'react'
+
 
 export default async function GetUserDetails() {
     const token = localStorage.getItem("auth_token");
@@ -10,7 +10,6 @@ export default async function GetUserDetails() {
         if (resUser.ok) {
             const userData = await resUser.json();
             localStorage.setItem("user_data", JSON.stringify(userData)); // Store user data in localStorage
-            console.log("User data stored in localStorage:", localStorage.getItem("user_data"));
             return true;
             }
         else{

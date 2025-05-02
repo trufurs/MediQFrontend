@@ -21,17 +21,19 @@ const SearchResults: React.FC<SearchResultsProps> = ({ isLoading, filtered }) =>
   if (filtered.length > 0) {
     return (
       <div className="w-full max-w-2xl mt-6 space-y-3">
-        {filtered.map((med: { id: number; name: string; manufacturer: string }) => (
+        {filtered.map((med: { id: number; name: string; manufacturer: string/* ; composition: string  */}) => (
           <div
-            onClick={() => window.location.replace(`/medicine/${med.id}`)} // Navigate to the medicine details page
-            key={med.id}
-            className="w-full border border-gray-300 rounded-lg px-6 py-4 text-lg shadow hover:shadow-md cursor-pointer transition"
+        onClick={() => window.location.replace(`/medicine/${med.id}`)} // Navigate to the medicine details page
+        key={med.id}
+        className="w-full border border-gray-300 rounded-lg px-6 py-4 text-lg shadow hover:shadow-md cursor-pointer transition"
           >
-            <p className="font-bold">{med.name}</p>
-            <p className="text-sm text-gray-600">Manufacturer: {med.manufacturer}</p>
+        <p className="font-bold">{med.name}</p>
+        <p className="text-sm text-gray-600">Manufacturer: {med.manufacturer}</p>
+        {/* <p className="text-sm text-gray-600">Composition: {med.composition}</p> */}
           </div>
         ))}
       </div>
+
     );
   }
 

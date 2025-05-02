@@ -41,11 +41,7 @@ export default function SearchMedicine() {
         },
       });
 
-      if (reset) {
-        setFiltered(response.data); // Reset results if it's a new search
-      } else {
-        setFiltered((prev) => [...prev, ...response.data]); // Append new results
-      }
+      setFiltered(response.data) 
     } catch (error) {
       console.error("Error fetching search results:", error);
       setFiltered([]);
