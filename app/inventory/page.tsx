@@ -1,13 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import CustomDialog from "../../components/CustomDialog";
+import {
+  fetchInventory,
+  addInventory,
+  updateInventory,
+  searchMedicines,
+} from "@/utils/management";
 
-const host = `${process.env.NEXT_PUBLIC_BACKEND}`;
 
 interface Medicine {
-  _id: string;
+  id: string;
   name: string;
   composition: string;
   manufacturer: string;
@@ -35,25 +39,66 @@ const InventoryPage = () => {
   const [quantity, setQuantity] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [selectedMedicine, setSelectedMedicine] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [medicines, setMedicines] = useState<Medicine[]>([]);
-
-  const API_URL = `${host}/inventory/`;
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Medicine[]>([]);
+  const [reload, setReload] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("auth_token");
-    axios
-      .get(API_URL, { headers: { Authorization: `Bearer ${token}` } })
-      .then((response) => {
-        setInventory(response.data);
-        setLoading(false);
-      })
-      .catch((error) => {
+    const loadInventory = async () => {
+      try {
+        const data = await fetchInventory();
+        setInventory(data);
+      } catch (error) {
         console.error("Error fetching inventory:", error);
+      } finally {
         setLoading(false);
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      }
+    };
+    loadInventory();
+  }, [reload]);
+
+
+  useEffect(()=>
+    {
+      // clear edit state when dialog is closed
+      if (!openEdit) {
+        setSelectedItem(null);
+        setQuantity("");
+        setExpiryDate("");
+      }
+    }, [openEdit]);
+  useEffect(()=>
+    {
+      // clear add state when dialog is closed
+      if (!openAdd) {
+        setSelectedMedicine("");
+        setQuantity("");
+        setExpiryDate("");
+      }
+    }
+    , [openAdd]);
+  useEffect(()=>
+    {
+      // clear details state when dialog is closed
+      if (!openDetails) {
+        setSelectedItem(null);
+      }
+    }
+    , [openDetails]);
+    
+    const handleSearch = async (query: string) => {
+      setSearchQuery(query);
+      if (query.trim() === "") {
+        setSearchResults([]);
+        return;
+      }
+      try {
+        const results = await searchMedicines(query);
+        setSearchResults(results);
+      } catch (error) {
+        console.error("Error searching medicines:", error);
+      }
+    };
 
   const handleEdit = (item: InventoryItem) => {
     setSelectedItem(item);
@@ -68,17 +113,15 @@ const InventoryPage = () => {
   };
 
   const handleAdd = async () => {
-    const token = localStorage.getItem("token");
-
     try {
-      await axios.post(
-        API_URL,
-        { medicine: selectedMedicine, quantity: Number(quantity), expiryDate },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await addInventory({
+        medicine: selectedMedicine,
+        quantity: Number(quantity),
+        expiryDate,
+      });
       alert("Inventory added successfully!");
       setOpenAdd(false);
-      window.location.reload();
+      setReload(!reload);
     } catch (error) {
       console.error("Error adding inventory:", error);
     }
@@ -86,22 +129,18 @@ const InventoryPage = () => {
 
   const handleUpdate = async () => {
     if (!selectedItem) return;
-    const token = localStorage.getItem("token");
-
     try {
-      await axios.put(
-        `${API_URL}${selectedItem._id}`,
-        { quantity: Number(quantity), expiryDate },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await updateInventory(selectedItem._id, {
+        quantity: Number(quantity),
+        expiryDate,
+      });
       alert("Inventory updated successfully!");
       setOpenEdit(false);
-      window.location.reload();
+      setReload(!reload);
     } catch (error) {
       console.error("Error updating inventory:", error);
     }
   };
-
   return (
     <div className="p-6 bg-black min-h-screen text-white">
       <h1 className="text-3xl font-bold mb-6">Inventory Management</h1>
@@ -148,20 +187,30 @@ const InventoryPage = () => {
 
       <CustomDialog open={openAdd} onClose={() => setOpenAdd(false)} title="Add Inventory">
         <div>
-          <select
-            value={selectedMedicine}
-            onChange={(e) => setSelectedMedicine(e.target.value)}
+          <input
+            type="text"
+            placeholder="Search Medicine"
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
             className="w-full p-2 mb-4 border border-gray-700 bg-gray-800 text-white rounded"
-          >
-            <option value="" disabled>
-              Select Medicine
-            </option>
-            {medicines.map((medicine) => (
-              <option key={medicine._id} value={medicine._id}>
-                {medicine.name}
-              </option>
-            ))}
-          </select>
+          />
+          {searchQuery && searchResults.length > 0 && (
+            <ul className="bg-gray-800 border border-gray-700 rounded max-h-40 overflow-y-auto">
+              {searchResults.map((medicine) => (
+                <li
+                  key={medicine.id}
+                  onClick={() => {
+                    setSelectedMedicine(medicine.id);
+                    setSearchQuery(medicine.name); // Show selected medicine name
+                    setSearchResults([]); // Clear search results
+                  }}
+                  className="p-2 hover:bg-gray-700 cursor-pointer"
+                >
+                  {medicine.name}
+                </li>
+              ))}
+            </ul>
+          )}
           <input
             type="text"
             placeholder="Quantity"

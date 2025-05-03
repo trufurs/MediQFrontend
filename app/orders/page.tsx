@@ -4,6 +4,7 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import React from "react";
 import AddMedicineDialog from "@/components/AddMedicineDialog"; // Import the dialog component
+import Link from "next/link";
 
 interface MedicineItem {
   name: string;
@@ -74,7 +75,9 @@ function OrdersPage() {
           expiryDate: medicine.expiry,
           type: medicine.type,
         })),
-        remarks: order.status,
+        remarks: order.remarks || "No remarks",
+        status: order.status,
+
       }));
 
       setOrders(mappedOrders);
@@ -212,12 +215,11 @@ function OrdersPage() {
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
         </select>
-        <button
-          onClick={() => setShowAddDialog(true)}
-          className="bg-gray-700 text-white px-4 py-2 rounded-md shadow-md hover:bg-gray-800 transition"
-        >
-          Add Order
-        </button>
+        <Link href="/orders/add">
+          <button className="bg-gray-700 text-white px-4 py-2 rounded-md shadow-md hover:bg-gray-800 transition">
+            Add Order
+          </button>
+        </Link>
         <button
           onClick={() => setShowAddMedicineDialog(true)} // Open AddMedicineDialog
           className="bg-indigo-600 text-white px-4 py-2 rounded-md shadow-md hover:bg-indigo-700 transition"
