@@ -9,10 +9,10 @@ export default async function Page({
   const { medicineid } = await params;
 
   let medicineData;
-
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND;
   try {
     // Fetch data using axios
-    const response = await axios.get(`http://localhost:3000/search/${medicineid}`);
+    const response = await axios.get(`${backendUrl}/search/${medicineid}`);
     medicineData = response.data;
   } catch (error) {
     console.error("Error fetching medicine details:", error);
