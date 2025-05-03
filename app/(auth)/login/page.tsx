@@ -1,15 +1,22 @@
 "use client";
 import { redirect } from "next/navigation";
 import { login } from "@/utils/auth";
-import Form from 'next/form'
+import Form from 'next/form';
+import { useToast } from "@/context/ToastContext";
 
 
 export default  function LoginPage() {
+    const toastContext  = useToast();
+    const showToast = toastContext.showToast;
+
     const handleLogin =  async(event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const form = event.target as HTMLFormElement;
         if(await login(form.email.value, form.password.value)){
+            showToast("Login Successful", "success");
             redirect("/");
+        }else{
+            showToast("Invalid email or password", "error");
         }
     }
     return (

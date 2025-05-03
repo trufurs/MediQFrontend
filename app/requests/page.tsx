@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 const AddRequestDialog = dynamic(() => import("@/components/AddRequestDialog"), {   
     ssr: false,
     });
+import { useToast } from "@/context/ToastContext"; // Import Toast Context
 
 
 interface Address {
@@ -38,7 +39,7 @@ function RequestsPage() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null); // State for selected request
   const [statusFilter, setStatusFilter] = useState<string>("all"); // State for status filter
-
+  const { showToast } = useToast(); // Toast context for notifications
   // Fetch Requests
   const fetchRequestsHandler = async () => {
     try {
@@ -47,9 +48,11 @@ function RequestsPage() {
       const token = localStorage.getItem("auth_token");
       const data = await fetchRequests(token!);
       setRequests(data);
+      showToast("Requests fetched successfully!", "success"); // Success toast
     } catch (err) {
       console.error("Error fetching requests:", err);
       setError("Failed to fetch requests. Please try again later.");
+      showToast("Failed to fetch requests. Please try again.", "error"); // Error toast
     } finally {
       setLoading(false);
     }
@@ -57,6 +60,7 @@ function RequestsPage() {
 
   useEffect(() => {
     fetchRequestsHandler();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle Admin Action (Verify/Reject)
@@ -69,9 +73,13 @@ function RequestsPage() {
           req._id === requestId ? { ...req, status } : req
         )
       );
+      showToast(
+        `Request has been ${status === "verified" ? "verified" : "rejected"} successfully!`,
+        "success"
+      ); // Success toast
     } catch (err) {
       console.error("Error updating request status:", err);
-      alert("Failed to update request status. Please try again.");
+      showToast("Failed to update request status. Please try again.", "error"); // Error toast
     }
   };
 
@@ -100,21 +108,25 @@ function RequestsPage() {
         {/* Status Filter */}
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            showToast(`Filter applied: ${e.target.value}`, "success"); // Info toast
+          }}
           className="bg-gray-700 text-white py-2 rounded-md shadow-md hover:bg-gray-800 transition"
         >
           <option value="all">All</option>
           <option value="pending">Pending</option>
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
-          </select>
+        </select>
         {showAddDialog && (
-                <AddRequestDialog
-                        onClose={() => setShowAddDialog(false)}
-                        onRequestAdded={(newRequest) =>
-                                setRequests((prevRequests) => [...prevRequests, newRequest])
-                        }
-                />
+          <AddRequestDialog
+            onClose={() => setShowAddDialog(false)}
+            onRequestAdded={(newRequest) => {
+              setRequests((prevRequests) => [...prevRequests, newRequest]);
+              showToast("New request added successfully!", "success"); // Success toast
+            }}
+          />
         )}
         </div>
         

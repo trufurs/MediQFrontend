@@ -25,3 +25,45 @@ export default function AI() {
     </div>
   )
 }
+
+
+/*
+"use client";
+import React from "react";
+import dynamic from "next/dynamic";
+const ToastManager = dynamic(() => import("@/components/ToastManager"), { ssr: false });
+
+const ExamplePage = () => {
+  const toastRef = React.useRef<{ addToast: (message: string, type: string) => void } | null>(null);
+
+  const showSuccess = () => {
+    toastRef.current?.addToast("Operation completed successfully!", "success");
+  };
+
+  const showError = () => {
+    toastRef.current?.addToast("An error occurred. Please try again.", "error");
+  };
+
+  return (
+    <div className="p-6">
+      <button
+        onClick={showSuccess}
+        className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+      >
+        Show Success
+      </button>
+      <button
+        onClick={showError}
+        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 ml-4"
+      >
+        Show Error
+      </button>
+
+      <ToastManager ref={toastRef} />
+    </div>
+  );
+};
+
+export default ExamplePage;
+
+*/

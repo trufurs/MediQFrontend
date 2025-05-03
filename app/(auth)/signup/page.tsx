@@ -1,10 +1,12 @@
 "use client";
 import { redirect } from "next/navigation";
 import { register } from "@/utils/auth";
-import Form from 'next/form'
+import Form from 'next/form';
+import { useToast } from "@/context/ToastContext";
 
 
 export default function SignupPage() {
+    const {showToast} = useToast();
     const handleSignup = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const form = event.target as HTMLFormElement;
@@ -14,7 +16,7 @@ export default function SignupPage() {
             alert("User Created Successfully")
             redirect("/login")
         } else {
-            alert("Error creating user")
+            showToast("Error Creating User", "error")
         }
         // const formData = new FormData(form);
     }

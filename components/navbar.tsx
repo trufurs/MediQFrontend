@@ -52,9 +52,15 @@ const Navbar = () => {
   return (
     <nav className="flex flex-wrap items-center justify-between p-4 bg-black text-white">
       {/* Logo Section */}
-      <div className="flex items-center">
-        <Image className="dark:invert" src="/logo.svg" alt="logo" width={40} height={30} />
-        <h1 className="text-lg font-bold ml-2">MediQ</h1>
+      <div className=" flex items-center">
+        <Image
+          className=" dark:invert not-dark:invert"
+          src="/logo.svg"
+          alt="logo"
+          width={40}
+          height={30}
+        />
+        <h1 className="text-lg font-bold ml-2 text-white">MediQ</h1>
       </div>
 
       {/* Navigation Links */}

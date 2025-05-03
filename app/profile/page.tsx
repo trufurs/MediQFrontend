@@ -2,7 +2,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-
+import { useToast } from "@/context/ToastContext";
 export default function ProfilePage() {
     const API_URL = `${process.env.NEXT_PUBLIC_BACKEND}`;
   const [profileData, setProfileData] = useState<any>(null);
@@ -12,6 +12,7 @@ export default function ProfilePage() {
   const [addressError, setAddressError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false); // State to toggle edit mode
+  const { showToast } = useToast(); // Toast context for notifications
   const [formData, setFormData] = useState({
     name: "",
     gender: "",
@@ -40,6 +41,7 @@ export default function ProfilePage() {
     } catch (err) {
       console.error("Error fetching profile data:", err);
       setError("Failed to fetch profile information.");
+      showToast("Failed to fetch profile information.", "error"); // Show error toast
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -59,6 +61,7 @@ export default function ProfilePage() {
     } catch (err) {
       console.error("Error fetching store details:", err);
       setStoreError("Failed to fetch store details.");
+      showToast("Failed to fetch store details.", "error"); // Show error toast
     }
   };
 
@@ -74,6 +77,7 @@ export default function ProfilePage() {
     } catch (err) {
       console.error("Error fetching address details:", err);
       setAddressError("Failed to fetch address details.");
+      showToast("Failed to fetch address details.", "error"); // Show error toast
     }
   };
 
@@ -87,7 +91,7 @@ export default function ProfilePage() {
     try {
       const token = localStorage.getItem("auth_token");
       const response = await axios.put(
-        "${API_URL}/user", 
+        `${API_URL}/user`, 
         formData,
         {
           headers: {
@@ -98,9 +102,11 @@ export default function ProfilePage() {
       setProfileData(response.data); // Update the profile data with the response
       localStorage.setItem("user_data", JSON.stringify(response.data)); // Update localStorage with the new profile data
       setIsEditing(false); // Exit edit mode
+      showToast("Profile updated successfully.", "success"); // Show success toast
     } catch (err) {
       console.error("Error updating profile:", err);
       setError("Failed to update profile.");
+      showToast("Failed to update profile.", "error"); // Show error toast
     }
   };
 
@@ -209,7 +215,9 @@ export default function ProfilePage() {
             </button>
             <button
               type="button"
-              onClick={() => setIsEditing(false)}
+              onClick={() =>{ setIsEditing(false);
+                showToast("Profile update cancelled.", "success"); // Show info toast
+              }}
               className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition"
             >
               Cancel

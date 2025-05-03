@@ -4,6 +4,7 @@ import axios from "axios";
 import SearchInput from "@/components/SearchInput";
 import SearchOptions from "@/components/SearchOptions";
 import SearchResults from "@/components/SearchResults";
+import { useToast } from "@/context/ToastContext";
 
 export default function SearchMedicine() {
   const [query, setQuery] = useState("");
@@ -13,6 +14,7 @@ export default function SearchMedicine() {
   const [isLoading, setIsLoading] = useState(false); // Loading state for search
   const [errorMessage, setErrorMessage] = useState(""); // Error message state
   const [skip, setSkip] = useState(0); // Pagination offset
+  const { showToast } = useToast(); // Toast context for notifications
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND;
 
   useEffect(() => {
@@ -44,6 +46,7 @@ export default function SearchMedicine() {
       setFiltered(response.data) 
     } catch (error) {
       console.error("Error fetching search results:", error);
+      showToast("Error fetching search results", "error");
       setFiltered([]);
     } finally {
       setIsLoading(false); // Stop loading

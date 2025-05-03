@@ -4,15 +4,22 @@ import { useState } from "react";
 import { useRouter } from "next/navigation"; // Import useRouter
 import AddRequestDialog from "@/components/AddRequestDialogWrapper";
 import { checkPendingRequests } from "@/utils/request";
-
+import { useToast } from "@/context/ToastContext"; 
 export default function HomePage() {
     const [showDialog, setShowDialog] = useState(false);
     const router = useRouter(); // Initialize useRouter
+    const { showToast } = useToast(); // Initialize toast context
 
     const handleStoreManagementClick = async () => {
         const token = localStorage.getItem("auth_token");
         if (!token) {
-            alert("Please log in to access this feature.");
+            showToast("Please log in to access store management.", "error"); // Show error toast
+            router.push("/login"); // Redirect to login page
+            return;
+        }
+        const userRole = localStorage.getItem("user_data");
+        if (userRole === "store-owner") {
+            router.push("/inventory"); // Redirect to home page if not a store manager
             return;
         }
 
@@ -21,7 +28,7 @@ export default function HomePage() {
             if (!pendingRequests || pendingRequests.length === 0) {
                 setShowDialog(true);
             } else {
-                alert("You already have pending requests.");
+                showToast("You already have pending requests.", "success"); // Show info toast
             }
         } catch (error) {
             console.error("Error checking pending requests:", error);
@@ -69,6 +76,7 @@ export default function HomePage() {
                     onRequestAdded={(request) => {
                         console.log("Request added:", request);
                         setShowDialog(false);
+                        showToast("Request added successfully!", "success"); // Show success toast
                     }}
                 />
             )}

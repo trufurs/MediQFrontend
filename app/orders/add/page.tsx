@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { searchMedicines, addOrder } from "@/utils/management";
+import { useToast } from "@/context/ToastContext";
 
 const AddOrderPage = () => {
   const [newOrder, setNewOrder] = useState({
@@ -10,9 +11,9 @@ const AddOrderPage = () => {
     remarks: "",
     items: [{ id: "", name: "", quantity: "", price: "", expiryDate: "", type: "" }],
   });
+    const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleInputChange = (
@@ -30,11 +31,13 @@ const AddOrderPage = () => {
       ...newOrder,
       items: [...newOrder.items, { id: "", name: "", quantity: "", price: "", expiryDate: "", type: "" }],
     });
+    showToast("New item added successfully.", "success"); // Success toast
   };
 
   const handleRemoveItem = (index: number) => {
     const updatedItems = newOrder.items.filter((_, i) => i !== index);
     setNewOrder({ ...newOrder, items: updatedItems });
+    showToast("Item removed successfully.", "success"); // Success toast
   };
 
   const handleSearch = async (query: string) => {
@@ -44,6 +47,7 @@ const AddOrderPage = () => {
     } catch (err) {
       console.error("Error fetching search results:", err);
       setSearchResults([]);
+      showToast("Failed to fetch search results. Please try again.", "error"); // Error toast
     }
   };
 
@@ -72,18 +76,18 @@ const AddOrderPage = () => {
       };
 
       await addOrder(orderPayload);
+      showToast("Order added successfully!", "success");
       router.push("/orders");
     } catch (err) {
       console.error("Error adding order:", err);
-      setError("Failed to add order. Please try again.");
+      showToast("Failed to add order. Please try again.", "error");
     }
   };
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
       <h1 className="text-3xl font-bold mb-6">Add New Order</h1>
-      {error && <p className="text-red-400 mb-4">{error}</p>}
-      <div className="space-y-4">
+        <div className="space-y-4">
         <input
           type="text"
           placeholder="Seller"

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import CustomDialog from "../../components/CustomDialog";
+import { useToast } from "@/context/ToastContext";
 import {
   fetchInventory,
   addInventory,
@@ -43,6 +44,8 @@ const InventoryPage = () => {
   const [searchResults, setSearchResults] = useState<Medicine[]>([]);
   const [reload, setReload] = useState(false);
 
+  const { showToast } = useToast();
+
   useEffect(() => {
     const loadInventory = async () => {
       try {
@@ -50,11 +53,13 @@ const InventoryPage = () => {
         setInventory(data);
       } catch (error) {
         console.error("Error fetching inventory:", error);
+        showToast("Error fetching inventory", "error");
       } finally {
         setLoading(false);
       }
     };
     loadInventory();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reload]);
 
 
@@ -96,6 +101,8 @@ const InventoryPage = () => {
         const results = await searchMedicines(query);
         setSearchResults(results);
       } catch (error) {
+        showToast("Error searching medicines", "error");
+        setSearchResults([]);
         console.error("Error searching medicines:", error);
       }
     };
@@ -119,7 +126,7 @@ const InventoryPage = () => {
         quantity: Number(quantity),
         expiryDate,
       });
-      alert("Inventory added successfully!");
+      showToast("Inventory added successfully!", "success");
       setOpenAdd(false);
       setReload(!reload);
     } catch (error) {
@@ -134,7 +141,7 @@ const InventoryPage = () => {
         quantity: Number(quantity),
         expiryDate,
       });
-      alert("Inventory updated successfully!");
+      showToast("Inventory updated successfully!", "success");
       setOpenEdit(false);
       setReload(!reload);
     } catch (error) {

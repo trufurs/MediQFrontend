@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import React from "react";
 import AddMedicineDialog from "@/components/AddMedicineDialog"; // Import the dialog component
 import Link from "next/link";
+import { useToast } from "@/context/ToastContext";
 
 interface MedicineItem {
   name: string;
@@ -33,6 +34,7 @@ function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showDialog, setShowDialog] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const { showToast } = useToast(); // Toast context for notifications
 
   // ✅ Add Order Dialog States
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -50,6 +52,7 @@ function OrdersPage() {
 
   const handleMedicineAdded = (medicine: any) => {
     console.log("New medicine added:", medicine);
+    showToast("New medicine added successfully!", "success"); // Success toast
     // Perform any action with the new medicine (e.g., update state or refresh data)
   };
 
@@ -82,14 +85,15 @@ function OrdersPage() {
 
       setOrders(mappedOrders);
       setFilteredOrders(mappedOrders);
+      showToast("Orders fetched successfully!", "success"); // Success toast
     } catch (err) {
       console.error("Error fetching orders:", err);
       setError("Failed to fetch orders. Please try again later.");
+      showToast("Failed to fetch orders. Please try again.", "error"); // Error toast
     } finally {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchOrders();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -120,9 +124,10 @@ function OrdersPage() {
         remarks: "",
         items: [{ name: "", quantity: 0, price: 0, expiryDate: "", type: "" }],
       });
+      showToast("Order added successfully!", "success"); // Success toast
     } catch (err) {
       console.error("Error adding order:", err);
-      alert("Failed to add order. Please try again.");
+      showToast("Failed to add order. Please try again.", "error"); // Error toast
     }
   };
 
@@ -139,11 +144,13 @@ function OrdersPage() {
       ...newOrder,
       items: [...newOrder.items, { name: "", quantity: 0, price: 0, expiryDate: "", type: "" }],
     });
+    showToast("New item added successfully.", "success"); // Success toast
   };
 
   const handleRemoveItem = (index: number) => {
     const updatedItems = newOrder.items.filter((_, i) => i !== index);
     setNewOrder({ ...newOrder, items: updatedItems });
+    showToast("Item removed successfully.", "success"); // Success toast
   };
 
   // ✅ Filter Orders
@@ -151,8 +158,10 @@ function OrdersPage() {
     setFilter(filter);
     if (filter === "all") {
       setFilteredOrders(orders);
+      showToast("Showing all orders.", "success"); // Success toast
     } else {
       setFilteredOrders(orders.filter((order) => order.remarks === filter));
+      showToast(`Filter applied: ${filter}`, "success"); // Success toast
     }
   };
 

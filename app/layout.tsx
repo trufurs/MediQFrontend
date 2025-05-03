@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/navbar";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
+import { ToastProvider } from "@/context/ToastContext";
 
 
 const geistSans = Geist({
@@ -36,12 +37,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <ToastProvider>
         <div>
           <Navbar />
         </div>
+        
         <div className="flex items-center text-center justify-center mt-10">
           {children}
         </div>
+        </ToastProvider>
         <Analytics/>
         <SpeedInsights/>
         
