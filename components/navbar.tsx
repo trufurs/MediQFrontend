@@ -87,7 +87,7 @@ const Navbar = () => {
         ) : (
           <div>
             <div className="hidden md:flex">
-            <ReminderBell/>
+            {user === "store-owner" && <ReminderBell/>}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className=" hover:text-blue-400 focus:outline-none"
@@ -128,7 +128,7 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       <div className="md:hidden">
-        <ReminderBell/>
+        {user === "store-owner" && <ReminderBell/>}
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="hover:text-blue-400 focus:outline-none"

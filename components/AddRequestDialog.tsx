@@ -1,11 +1,11 @@
 "use client";
 import dynamic from 'next/dynamic';
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 const MapContainer = dynamic(() => import("react-leaflet").then(mod => mod.MapContainer), { ssr: false });
 const TileLayer = dynamic(() => import("react-leaflet").then(mod => mod.TileLayer), { ssr: false });
 const Marker = dynamic(() => import("react-leaflet").then(mod => mod.Marker), { ssr: false });
-import { useMapEvents } from "react-leaflet";
+import { useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 
 import "leaflet/dist/leaflet.css";
@@ -64,6 +64,8 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
       country: "",
     },
   });
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+
 
   const handleAddRequest = async () => {
     try {
@@ -81,7 +83,31 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
     }
   };
 
+  useEffect(() => {
+    const getuserLocation = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation([latitude, longitude]);
+          setNewRequest((prev) => ({
+            ...prev,
+            address: { ...prev.address, latitude, longitude },
+          }));
+        }, (error) => {
+          console.error("Error getting location:", error);
+          alert("Failed to get user location. Please allow location access.");
+        });
+      } else {
+        alert("Geolocation is not supported by this browser.");
+      }
+    }
+    getuserLocation();
+  }, []);
+
+
   const LocationSelector = () => {
+    const map = useMap();
+
     useMapEvents({
       click(e) {
         const { lat, lng } = e.latlng;
@@ -91,6 +117,13 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
         }));
       },
     });
+
+    useEffect(() => {
+      if (userLocation) {
+        map.flyTo(userLocation, 13); // Zoom level 13 is a reasonable default
+      }
+    }, [userLocation, map]);
+
 
     return newRequest.address.latitude && newRequest.address.longitude ? (
       <Marker
@@ -213,8 +246,8 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
           <h3 className="text-md font-semibold mb-2">Select Location</h3>
           <div className="w-full h-64 mb-4">
             <MapContainer
-              center={[20, 78]}
-              zoom={5}
+              center={userLocation || [20, 78]}
+              zoom={userLocation ? 13 : 5}
               style={{ height: "100%", width: "100%" }}
             >
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
