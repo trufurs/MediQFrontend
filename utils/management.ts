@@ -49,7 +49,16 @@ export const fetchInventory = async () => {
   const response = await axios.get(`${API_BASE_URL}/inventory/`, {
     headers: getHeaders(),
   });
-  return response.data;
+  const data = response.data;
+  const updatedData = data.map((item: { expiryDate: string }) => {
+    const expiryDate = new Date(item.expiryDate);
+    const today = new Date();
+    const remainingDays = Math.ceil(
+      (expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    return { ...item, remainingDays };
+  });
+  return updatedData;
 };
 
 // Add inventory

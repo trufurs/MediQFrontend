@@ -134,8 +134,12 @@ export default function Page({
   };
 
   // Handle order request
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleOrderRequest = async (storeId: string) => {
-    try {
+    showToast(
+      "Order request feature is coming soon! Stay tuned for updates.",
+      "success");
+    /* try {
       const token = localStorage.getItem("auth_token");
       if (!token) {
         showToast("Please log in to place an order.", "error");
@@ -155,7 +159,7 @@ export default function Page({
     } catch (err) {
       console.error("Error placing order:", err);
       showToast("Failed to place order. Please try again.", "error");
-    }
+    } */
   };
 
   if (error) {
@@ -207,7 +211,7 @@ export default function Page({
       </div>
 
       {/* Search Stores Button */}
-      {search && (
+      {search && stores.length===0 &&(
         <div className="mt-8">
           <button
             onClick={handleSearchStores}
@@ -262,7 +266,7 @@ export default function Page({
                   onClick={() => handleOrderRequest(store.store)}
                   className="mt-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition"
                 >
-                  Request Order
+                  Request Order Comming soon!
                 </button>
               </div>
             ))}

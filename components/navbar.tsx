@@ -3,6 +3,7 @@ import Image from "next/image";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import ReminderBell from "./reminderbell";
 
 const Navbar = () => {
   const [user, setUser] = useState<string>("temp");
@@ -85,12 +86,16 @@ const Navbar = () => {
           </div>
         ) : (
           <div>
+            <div className="hidden md:flex">
+            <ReminderBell/>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="hidden md:flex hover:text-blue-400 focus:outline-none"
+              className=" hover:text-blue-400 focus:outline-none"
             >
               {userName} ▼
             </button>
+            </div>
+            {/* Dropdown Menu */}
             {isMenuOpen && (
               <div className="hidden md:flex absolute right-0 mt-2 whitespace-pre-wrap w-auto w:max-60 bg-gray-700 rounded-md shadow-lg">
                 <Link
@@ -123,6 +128,7 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       <div className="md:hidden">
+        <ReminderBell/>
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="hover:text-blue-400 focus:outline-none"
@@ -131,13 +137,13 @@ const Navbar = () => {
         </button>
         {isMenuOpen && (
           <div className="absolute right-0 mt-2 w-40 bg-gray-700 rounded-md shadow-lg">
-            <Link href="/" className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400">
+            <Link href="/" className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400" onClick={() => setIsMenuOpen(false)}>
               Home
             </Link>
-            <Link href="/medicine" className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400">
+            <Link href="/medicine" className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400" onClick={() => setIsMenuOpen(false)}>
               Medicine
             </Link>
-            <Link href="/map" className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400">
+            <Link href="/map" className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400" onClick={() => setIsMenuOpen(false)}>
               Map 🗺️
             </Link>
             
@@ -146,12 +152,14 @@ const Navbar = () => {
                 <Link
                   href="/inventory"
                   className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
+                  onClick={() => setIsMenuOpen(false)}
                 >
                   Inventory
                 </Link>
                 <Link
                   href="/orders"
                   className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
+                  onClick={() => setIsMenuOpen(false)}
                 >
                   Orders
                 </Link>
@@ -162,6 +170,7 @@ const Navbar = () => {
                   <Link
                     href="/requests"
                     className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
+                    onClick={() => setIsMenuOpen(false)}
                   >
                     Requests
                   </Link>
@@ -172,12 +181,14 @@ const Navbar = () => {
                 <Link
                   href="/login"
                   className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
+                  onClick={() => setIsMenuOpen(false)}
                 >
                   Login
                 </Link>
                 <Link
                   href="/signup"
                   className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
+                  onClick={() => setIsMenuOpen(false)}
                 >
                   Signup
                 </Link>
@@ -187,6 +198,7 @@ const Navbar = () => {
                 <Link
                   href="/profile"
                   className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
+                  onClick={() => setIsMenuOpen(false)}
                 >
                   Profile
                 </Link>
