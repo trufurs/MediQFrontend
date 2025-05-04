@@ -80,7 +80,7 @@ const Navbar = () => {
       {/* Authentication Links */}
       <div className="relative">
         {user === "temp" ? (
-          <div className="flex space-x-4">
+          <div className="hidden md:flex space-x-4">
             <Link href="/login" className="hover:text-blue-400">Login</Link>
             <Link href="/signup" className="hover:text-blue-400">Signup</Link>
           </div>
@@ -136,7 +136,7 @@ const Navbar = () => {
           ☰
         </button>
         {isMenuOpen && (
-          <div className="absolute right-0 mt-2 w-40 bg-gray-700 rounded-md shadow-lg">
+          <div className="absolute right-0 mt-2 w-40 bg-gray-700 rounded-md shadow-lg z-10">
             <Link href="/" className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400" onClick={() => setIsMenuOpen(false)}>
               Home
             </Link>
