@@ -8,6 +8,7 @@ import {
   addInventory,
   updateInventory,
   searchMedicines,
+  deleteInventory,
 } from "@/utils/management";
 
 
@@ -148,6 +149,23 @@ const InventoryPage = () => {
       console.error("Error updating inventory:", error);
     }
   };
+
+  const handleDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this item?")) {
+      try {
+        await deleteInventory(id);
+        // Remove the deleted item from the inventory state
+        // This is a more efficient way to update the state
+        // instead of fetching the entire inventory again
+        setInventory((prev) => prev.filter((item) => item._id !== id));
+        showToast("Inventory deleted successfully!", "success");
+        setReload(!reload);
+      } catch (error) {
+        console.error("Error deleting inventory:", error);
+        showToast("Error deleting inventory", "error");
+      }
+    }
+  };
   return (
     <div className="p-6 bg-black min-h-screen text-white">
       <h1 className="text-3xl font-bold mb-6">Inventory Management</h1>
@@ -167,18 +185,39 @@ const InventoryPage = () => {
               <p className="text-sm">Quantity: {item.quantity}</p>
               <p className="text-sm">Expiry Date: {item.expiryDate.split("T")[0]}</p>
               <div className="flex gap-2 mt-4">
-                <button
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                  onClick={() => handleEdit(item)}
-                >
-                  Edit
-                </button>
-                <button
-                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-                  onClick={() => handleShowDetails(item)}
-                >
-                  Show Details
-                </button>
+          <button
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            onClick={() => handleEdit(item)}
+          >
+            Edit
+          </button>
+          <button
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+            onClick={() => handleShowDetails(item)}
+          >
+            Show Details
+          </button>
+          <button
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 flex items-center gap-2"
+            onClick={() => handleDelete(item._id)
+            }
+            title="Delete"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+              stroke="currentColor"
+              className="w-5 h-5"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19.5 9l-.867 10.142A2.25 2.25 0 0116.392 21H7.608a2.25 2.25 0 01-2.241-1.858L4.5 9m5.25 4.5v5.25m4.5-5.25v5.25M10.5 4.5h3m-6 0h9m-10.5 0a2.25 2.25 0 012.25-2.25h4.5a2.25 2.25 0 012.25 2.25m-9 0h9"
+              />
+            </svg>
+          </button>
               </div>
             </div>
           ))}

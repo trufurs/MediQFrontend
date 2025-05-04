@@ -13,7 +13,7 @@ export default function SignupPage() {
 
         const boo = await register(form.namee.value ,form.email.value, form.password.value , form.gender.value , form.phone.value)
         if (boo) {
-            alert("User Created Successfully")
+            showToast("User Created Successfully", "success")
             redirect("/login")
         } else {
             showToast("Error Creating User", "error")

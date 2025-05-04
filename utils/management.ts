@@ -72,3 +72,10 @@ export const updateInventory = async (id: string, updatePayload: { quantity: num
   return response.data;
 };
 
+export const deleteInventory = async (id: string) => {
+  const response = await axios.delete(`${API_BASE_URL}/inventory/${id}`, {
+    headers: getHeaders(),
+  });
+  return response.data;
+}
+
