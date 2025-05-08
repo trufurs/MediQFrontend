@@ -5,6 +5,7 @@ import { useToast } from "@/context/ToastContext";
 import axios from "axios";
 
 interface Store {
+  storeDetails: any;
   store: string;
   name: string;
   distance: number;
@@ -94,6 +95,7 @@ export default function Page({
                 },
               }
             );
+            console.log("Stores response:", response.data); // Debugging line
             if (response.data.length === 0) {
               setStores([]);
               showToast(
@@ -236,6 +238,10 @@ export default function Page({
               >
                 <p>
                   <span className="font-semibold">Store Name:</span>{" "}
+                  {store.storeDetails.name|| "Unknown"}
+                </p>
+                <p>
+                  <span className="font-semibold">Street:</span>{" "}
                   {store.storeAddress?.street || "Unknown"}
                 </p>
                 <p>
@@ -243,12 +249,8 @@ export default function Page({
                   {store.storeAddress?.city}
                 </p>
                 <p>
-                  <span className="font-semibold">State:</span>{" "}
-                  {store.storeAddress?.state}
-                </p>
-                <p>
-                  <span className="font-semibold">Country:</span>{" "}
-                  {store.storeAddress?.country}
+                  <span className="font-semibold">Contact No.:</span>{" "}
+                  {store.storeDetails?.contact || "Unknown"}
                 </p>
                 <p>
                   <span className="font-semibold">Distance:</span>{" "}
