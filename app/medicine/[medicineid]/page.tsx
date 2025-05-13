@@ -36,10 +36,14 @@ export default function Page({
   const [error, setError] = useState<string | null>(null);
   const [medicineData, setMedicineData] = useState<MedicineData | null>(null);
   const [search, setSearch] = useState<boolean>(true);
+  const [openfda, setOpenfda] = useState<boolean>(false);
 
-  if (medicineid.split("-").length > 1) {
-    setSearch(false);
-  }
+  useEffect(() => {
+    if (medicineid.split("-").length > 1) {
+      setSearch(false);
+      setOpenfda(true);
+    }
+  }, [medicineid]);
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND;
 
@@ -48,7 +52,7 @@ export default function Page({
     const fetchMedicineData = async () => {
       try {
         const response = await axios.get(`${backendUrl}/search/${medicineid}`);
-        setMedicineData(response.data);
+        setMedicineData(response.data); 
       } catch (err) {
         console.error("Error fetching medicine details:", err);
         setError("Failed to fetch medicine details.");
@@ -177,6 +181,37 @@ export default function Page({
     return (
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold text-blue-500">Loading...</h1>
+      </div>
+    );
+  }
+
+  if(openfda === true){
+    return (
+      <div className="container mx-auto px-12 py-8">
+        {/* Highlighted Name */}
+        <h1 className="text-4xl font-bold mb-6 text-blue-600 text-left">{medicineData.name}</h1>
+  
+        {/* Dynamic Details */}
+        <div className="space-y-6">
+          {Object.entries(medicineData).map(([key, value]) => {
+            // Skip highlighting the `name` field since it's already displayed above
+            if (key === "name") return null;
+  
+            // Format the key to make it more readable (e.g., "composition" -> "Composition")
+            const formattedKey = key
+              .replace(/_/g, " ") // Replace underscores with spaces
+              .replace(/^\w/, (c) => c.toUpperCase()); // Capitalize the first letter
+  
+            return (
+              <div key={key} className="text-left">
+                <h2 className="text-2xl font-semibold mb-2 text-white">{formattedKey}</h2>
+                <p className="text-green-300 text-lg leading-relaxed">
+                  {typeof value === "string" ? value : JSON.stringify(value, null, 2)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }
