@@ -10,6 +10,7 @@ import {
   searchMedicines,
   deleteInventory,
 } from "@/utils/management";
+import { FiBox, FiAlertTriangle, FiTrash2, FiEdit2, FiInfo, FiSearch, FiCalendar, FiPlus } from "react-icons/fi";
 
 interface Medicine {
   id: string;
@@ -68,7 +69,6 @@ const InventoryPage = () => {
   }, [reload]);
 
   useEffect(() => {
-    // clear edit state when dialog is closed
     if (!openEdit) {
       setSelectedItem(null);
       setQuantity("");
@@ -77,7 +77,6 @@ const InventoryPage = () => {
   }, [openEdit]);
 
   useEffect(() => {
-    // clear add state when dialog is closed
     if (!openAdd) {
       setSelectedMedicine("");
       setQuantity("");
@@ -86,7 +85,6 @@ const InventoryPage = () => {
   }, [openAdd]);
 
   useEffect(() => {
-    // clear details state when dialog is closed
     if (!openDetails) {
       setSelectedItem(null);
     }
@@ -121,22 +119,45 @@ const InventoryPage = () => {
   };
 
   const handleAdd = async () => {
+    if (!selectedMedicine) {
+      showToast("Please search and select a medicine record.", "error");
+      return;
+    }
+    if (!quantity || parseInt(quantity, 10) <= 0) {
+      showToast("Please enter a valid stock quantity.", "error");
+      return;
+    }
+    if (!expiryDate) {
+      showToast("Please specify the batch expiry date.", "error");
+      return;
+    }
+
     try {
       await addInventory({
         medicine: selectedMedicine,
         quantity: Number(quantity),
         expiryDate,
       });
-      showToast("Inventory added successfully!", "success");
+      showToast("Inventory batch added successfully!", "success");
       setOpenAdd(false);
       setReload(!reload);
     } catch (error) {
       console.error("Error adding inventory:", error);
+      showToast("Failed to add inventory batch.", "error");
     }
   };
 
   const handleUpdate = async () => {
     if (!selectedItem) return;
+    if (!quantity || parseInt(quantity, 10) <= 0) {
+      showToast("Please enter a valid stock quantity.", "error");
+      return;
+    }
+    if (!expiryDate) {
+      showToast("Please specify the batch expiry date.", "error");
+      return;
+    }
+
     try {
       await updateInventory(selectedItem._id, {
         quantity: Number(quantity),
@@ -147,6 +168,7 @@ const InventoryPage = () => {
       setReload(!reload);
     } catch (error) {
       console.error("Error updating inventory:", error);
+      showToast("Failed to update inventory batch.", "error");
     }
   };
 
@@ -163,6 +185,20 @@ const InventoryPage = () => {
       }
     }
   };
+
+  // Compute metrics
+  const stats = React.useMemo(() => {
+    const total = inventory.length;
+    const expired = inventory.filter((item) => new Date(item.expiryDate) < new Date()).length;
+    const near = inventory.filter((item) => {
+      const expiryDate = new Date(item.expiryDate);
+      const now = new Date();
+      const diffTime = expiryDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 3600 * 24));
+      return diffDays <= 30 && expiryDate > now;
+    }).length;
+    return { total, expired, near };
+  }, [inventory]);
 
   const filteredInventory = React.useMemo(() => {
     let filtered = [...inventory];
@@ -194,116 +230,199 @@ const InventoryPage = () => {
   };
 
   return (
-    <div className="p-6 bg-black min-h-screen text-white">
-      <h1 className="text-3xl font-bold mb-6 text-center">Inventory Management</h1>
-
-      <div className="flex justify-between items-center mb-4">
-        <select
-          value={filter}
-          onChange={(e) => {
-            setFilter(e.target.value as "all" | "expired" | "nearExpiry");
-            setCurrentPage(1); // Reset to first page when filter changes
-          }}
-          className="p-2 bg-gray-700 text-white rounded"
+    <div className="p-6 md:p-10 bg-black min-h-screen text-white max-w-6xl mx-auto text-left">
+      
+      {/* Title */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Stock Inventory Manager</h1>
+          <p className="text-gray-400 text-sm mt-1">Track physical medicine batches, expiry alerts, and stock counts.</p>
+        </div>
+        <button
+          onClick={() => setOpenAdd(true)}
+          className="self-start md:self-auto flex items-center gap-1.5 px-5 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg transition duration-200 transform active:scale-95 cursor-pointer text-sm"
         >
-          <option value="all">All</option>
-          <option value="expired">Expired</option>
-          <option value="nearExpiry">Near Expiry</option>
-        </select>
+          <FiPlus /> Add Stock Batch
+        </button>
+      </div>
+
+      {/* Stats Summary widgets row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-5 shadow-md flex items-center justify-between relative overflow-hidden">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Active Batches</p>
+            <p className="text-3xl font-extrabold text-white">{loading ? "..." : stats.total}</p>
+          </div>
+          <span className="text-3xl p-3 bg-white/5 rounded-xl border border-white/5"><FiBox className="text-gray-300" size={24} /></span>
+        </div>
+
+        <div className="bg-rose-500/5 border border-rose-500/10 rounded-2xl p-5 shadow-md flex items-center justify-between relative overflow-hidden">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-rose-450 uppercase tracking-wider">Expired Batches</p>
+            <p className="text-3xl font-extrabold text-rose-400">{loading ? "..." : stats.expired}</p>
+          </div>
+          <span className="text-3xl p-3 bg-rose-500/10 rounded-xl border border-rose-500/20"><FiAlertTriangle className="text-rose-400" size={24} /></span>
+        </div>
+
+        <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-5 shadow-md flex items-center justify-between relative overflow-hidden">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-amber-450 uppercase tracking-wider">Nearing Expiry (30 Days)</p>
+            <p className="text-3xl font-extrabold text-amber-400">{loading ? "..." : stats.near}</p>
+          </div>
+          <span className="text-3xl p-3 bg-amber-500/10 rounded-xl border border-amber-500/20"><FiAlertTriangle className="text-amber-400" size={24} /></span>
+        </div>
+      </div>
+
+      {/* Filter and Tab Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/10 pb-4 mb-6 gap-4">
+        {/* Toggle tabs */}
+        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 w-full md:max-w-sm">
+          {(["all", "expired", "nearExpiry"] as const).map((type) => {
+            const labels = { all: "All Batches", expired: "Expired Only", nearExpiry: "Expiring Soon" };
+            return (
+              <button
+                key={type}
+                onClick={() => {
+                  setFilter(type);
+                  setCurrentPage(1);
+                }}
+                className={`flex-grow py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
+                  filter === type ? "bg-white/10 text-white shadow-md" : "text-gray-450 hover:text-white"
+                }`}
+              >
+                {labels[type]}
+              </button>
+            );
+          })}
+        </div>
+        
+        <span className="text-xs text-gray-500 font-semibold uppercase tracking-widest">
+          Showing {filteredInventory.length} results
+        </span>
       </div>
 
       {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="loader"></div>
+        <div className="flex flex-col items-center justify-center py-24">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-cyan-500 mb-4"></div>
+          <p className="text-gray-400 text-sm">Synchronizing inventory records...</p>
+        </div>
+      ) : filteredInventory.length === 0 ? (
+        <div className="text-center py-20 bg-white/5 border border-white/10 rounded-2xl shadow-xl">
+          <FiBox className="mx-auto text-5xl text-gray-500 mb-3" />
+          <p className="text-gray-400 text-base">No inventory records found.</p>
+          <p className="text-gray-550 text-xs mt-1">Try toggling filters or add a new stock batch to start.</p>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {paginatedInventory.map((item) => {
               const isExpired = new Date(item.expiryDate) < new Date();
+              const daysLeft = item.remainingDays;
+              
+              // Expiry urgency status
+              const daysPercent = Math.max(0, Math.min(100, (daysLeft / 180) * 100));
+              const progressColor = daysLeft <= 7 ? "bg-red-500" : daysLeft <= 30 ? "bg-amber-500" : "bg-emerald-500";
+              const tagStyle = daysLeft <= 7 
+                ? "bg-red-500/10 border-red-500/30 text-red-400" 
+                : daysLeft <= 30 
+                ? "bg-amber-500/10 border-amber-500/30 text-amber-400" 
+                : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400";
+
               return (
                 <div
                   key={item._id}
-                  className="relative bg-gray-800 border border-gray-700 rounded-lg shadow-md p-4 overflow-hidden"
+                  className={`bg-white/5 hover:bg-white/10 border rounded-2xl p-5 shadow-lg hover:shadow-2xl transition duration-300 flex flex-col justify-between relative overflow-hidden ${
+                    isExpired ? "border-red-500/10 hover:border-red-500/30" : "border-white/10 hover:border-cyan-500/20"
+                  }`}
                 >
-                  <div
-                    className={`absolute top-0 right-0 m-2 px-3 py-1 rounded-full text-xs font-bold ${
-                      item.remainingDays <= 7
-                        ? "bg-red-500 text-white"
-                        : item.remainingDays <= 30
-                        ? "bg-yellow-500 text-black"
-                        : "bg-green-500 text-white"
-                    }`}
-                  >
-                    {item.remainingDays} Days
+                  {/* Urgency Badge */}
+                  <div className="absolute top-4 right-4">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold border uppercase tracking-wider ${tagStyle}`}>
+                      {daysLeft <= 0 ? "Expired" : `${daysLeft} Days Left`}
+                    </span>
                   </div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p
-                      className={`text-sm font-semibold ${
-                        isExpired ? "text-red-500" : "text-gray-400"
-                      }`}
-                    >
-                      {isExpired
-                        ? "Expired"
-                        : `Expiry: ${item.expiryDate.split("T")[0]}`}
-                    </p>
+
+                  <div>
+                    {/* Expiry Calendar info */}
+                    <div className="text-gray-400 text-[10px] font-mono tracking-tight flex items-center mb-3">
+                      <FiCalendar className="mr-1.5 flex-shrink-0" />
+                      <span>{isExpired ? "Expired on:" : "Expiry Date:"} {item.expiryDate.split("T")[0]}</span>
+                    </div>
+
+                    <h2 className="text-lg font-bold text-white tracking-tight pr-20 leading-tight mb-2 truncate" title={item.medicine.name}>
+                      {item.medicine.name}
+                    </h2>
+
+                    <div className="bg-black/25 border border-white/5 rounded-xl p-3 mb-4 flex justify-between items-center text-xs">
+                      <div>
+                        <p className="text-gray-450 uppercase tracking-widest text-[9px] font-bold">In-Stock Volume</p>
+                        <p className="text-base font-bold text-white mt-0.5">{item.quantity} units</p>
+                      </div>
+                      <div className="w-10 h-10 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 flex items-center justify-center">
+                        <FiBox size={20} />
+                      </div>
+                    </div>
                   </div>
-                  <h2 className="text-lg font-semibold">{item.medicine.name}</h2>
-                  <p className="text-sm mb-4">Quantity: {item.quantity}</p>
-                  <div className="flex gap-2 mt-auto justify-center">
+
+                  {/* Expiry visual progress bar */}
+                  {!isExpired && (
+                    <div className="space-y-1.5 mb-5 text-xs">
+                      <div className="flex justify-between font-semibold text-gray-450 text-[10px] uppercase">
+                        <span>Shelf Urgency:</span>
+                        <span>{daysLeft > 30 ? "Safe Freshness" : "Action Required"}</span>
+                      </div>
+                      <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden border border-white/5">
+                        <div className={`h-full ${progressColor}`} style={{ width: `${daysPercent}%` }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 border-t border-white/5 pt-4 mt-auto">
                     <button
-                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-transform transform hover:scale-105"
                       onClick={() => handleEdit(item)}
+                      className="flex-1 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
                     >
-                      Edit
+                      <FiEdit2 size={12} /> Edit
                     </button>
                     <button
-                      className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-transform transform hover:scale-105"
                       onClick={() => handleShowDetails(item)}
+                      className="flex-1 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer"
                     >
-                      Show Details
+                      <FiInfo size={12} /> Details
                     </button>
                     <button
-                      className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 flex items-center gap-2 transition-transform transform hover:scale-105"
                       onClick={() => handleDelete(item._id)}
-                      title="Delete"
+                      className="px-3 py-2 bg-rose-600/10 hover:bg-rose-600 border border-rose-500/20 hover:border-rose-500 text-rose-400 hover:text-white rounded-xl text-xs font-bold transition flex items-center justify-center cursor-pointer"
+                      title="Delete Batch Record"
                     >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth={2}
-                        stroke="currentColor"
-                        className="w-5 h-5"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M19.5 9l-.867 10.142A2.25 2.25 0 0116.392 21H7.608a2.25 2.25 0 01-2.241-1.858L4.5 9m5.25 4.5v5.25m4.5-5.25v5.25M10.5 4.5h3m-6 0h9m-10.5 0a2.25 2.25 0 012.25-2.25h4.5a2.25 2.25 0 012.25 2.25m-9 0h9"
-                        />
-                      </svg>
+                      <FiTrash2 size={14} />
                     </button>
                   </div>
+
                 </div>
               );
             })}
           </div>
 
+          {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex justify-center mt-6">
+            <div className="flex justify-center mt-8 gap-1">
               <button
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="px-4 py-2 bg-gray-700 text-white rounded mx-2"
+                className="px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition"
               >
-                Previous
+                Prev
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <button
                   key={page}
                   onClick={() => handlePageChange(page)}
-                  className={`px-4 py-2 rounded mx-1 ${
-                    currentPage === page ? "bg-blue-500 text-white" : "bg-gray-700 text-white"
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition border ${
+                    currentPage === page 
+                      ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400" 
+                      : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
                   }`}
                 >
                   {page}
@@ -312,7 +431,7 @@ const InventoryPage = () => {
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 bg-gray-700 text-white rounded mx-2"
+                className="px-3.5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition"
               >
                 Next
               </button>
@@ -321,107 +440,184 @@ const InventoryPage = () => {
         </>
       )}
 
-      <button
-        className="fixed bottom-4 right-4 bg-blue-500 text-white p-4 rounded-full shadow-lg hover:bg-blue-600"
-        onClick={() => setOpenAdd(true)}
-      >
-        +
-      </button>
+      {/* Add Stock Dialog */}
+      <CustomDialog open={openAdd} onClose={() => setOpenAdd(false)} title="Register Stock Batch">
+        <div className="space-y-4 text-left">
+          
+          <div className="relative">
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+              Search Local Medicine
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Type brand/generic name..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition text-xs"
+              />
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
+            </div>
 
-      <CustomDialog open={openAdd} onClose={() => setOpenAdd(false)} title="Add Inventory">
-        <div>
-          <input
-            type="text"
-            placeholder="Search Medicine"
-            value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="w-full p-2 mb-4 border border-gray-700 bg-gray-800 text-white rounded"
-          />
-          {searchQuery && searchResults.length > 0 && (
-            <ul className="bg-gray-800 border border-gray-700 rounded max-h-40 overflow-y-auto">
-              {searchResults.map((medicine) => (
-                <li
-                  key={medicine.id}
-                  onClick={() => {
-                    setSelectedMedicine(medicine.id);
-                    setSearchQuery(medicine.name); // Show selected medicine name
-                    setSearchResults([]); // Clear search results
-                  }}
-                  className="p-2 hover:bg-gray-700 cursor-pointer"
-                >
-                  {medicine.name}
-                </li>
-              ))}
-            </ul>
-          )}
-          <input
-            type="text"
-            placeholder="Quantity"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            className="w-full p-2 mb-4 border border-gray-700 bg-gray-800 text-white rounded"
-          />
-          <input
-            type="date"
-            value={expiryDate}
-            onChange={(e) => setExpiryDate(e.target.value)}
-            className="w-full p-2 mb-4 border border-gray-700 bg-gray-800 text-white rounded"
-          />
-          <button
-            onClick={handleAdd}
-            className="w-full p-2 bg-green-500 text-white rounded hover:bg-green-600"
-          >
-            Add Inventory
-          </button>
-        </div>
-      </CustomDialog>
+            {searchQuery && searchResults.length > 0 && (
+              <ul className="absolute z-30 left-0 right-0 mt-2 bg-zinc-950 border border-white/10 rounded-xl shadow-2xl max-h-40 overflow-y-auto">
+                {searchResults.map((medicine) => (
+                  <li
+                    key={medicine.id}
+                    onClick={() => {
+                      setSelectedMedicine(medicine.id);
+                      setSearchQuery(medicine.name);
+                      setSearchResults([]);
+                    }}
+                    className="p-3 text-xs text-white hover:bg-cyan-500/10 cursor-pointer border-b border-white/5 last:border-0 text-left"
+                  >
+                    <p className="font-bold">{medicine.name}</p>
+                    <p className="text-[10px] text-gray-450 truncate mt-0.5">{medicine.composition}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
-      <CustomDialog open={openEdit} onClose={() => setOpenEdit(false)} title="Edit Inventory">
-        <div>
-          <input
-            type="text"
-            placeholder="Quantity"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            className="w-full p-2 mb-4 border border-gray-700 bg-gray-800 text-white rounded"
-          />
-          <input
-            type="date"
-            value={expiryDate}
-            onChange={(e) => setExpiryDate(e.target.value)}
-            className="w-full p-2 mb-4 border border-gray-700 bg-gray-800 text-white rounded"
-          />
-          <button
-            onClick={handleUpdate}
-            className="w-full p-2 bg-green-500 text-white rounded hover:bg-green-600"
-          >
-            Update
-          </button>
-        </div>
-      </CustomDialog>
-
-      <CustomDialog open={openDetails} onClose={() => setOpenDetails(false)} title="Inventory Details">
-        {selectedItem && (
           <div>
-            <h2 className="text-lg font-semibold mb-2">{selectedItem.medicine.name}</h2>
-            <p>
-              <strong>Composition:</strong> {selectedItem.medicine.composition}
-            </p>
-            <p>
-              <strong>Manufacturer:</strong> {selectedItem.medicine.manufacturer}
-            </p>
-            <p>
-              <strong>Usage:</strong> {selectedItem.medicine.usage}
-            </p>
-            <p>
-              <strong>Precautions:</strong> {selectedItem.medicine.precautions}
-            </p>
-            <p>
-              <strong>Quantity:</strong> {selectedItem.quantity}
-            </p>
-            <p>
-              <strong>Expiry Date:</strong> {selectedItem.expiryDate.split("T")[0]}
-            </p>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+              Stock Quantity (Units)
+            </label>
+            <input
+              type="number"
+              placeholder="e.g. 100"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+              Batch Expiry Date
+            </label>
+            <div className="relative">
+              <input
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500/50 transition text-xs"
+              />
+              <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none" />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => setOpenAdd(false)}
+              className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl font-bold transition text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAdd}
+              className="flex-grow py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl font-bold shadow-lg transition duration-200 transform active:scale-95 text-xs text-center"
+            >
+              Confirm Batch Addition
+            </button>
+          </div>
+        </div>
+      </CustomDialog>
+
+      {/* Edit Stock Dialog */}
+      <CustomDialog open={openEdit} onClose={() => setOpenEdit(false)} title="Update Stock Batch">
+        <div className="space-y-4 text-left">
+          
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+              Stock Quantity (Units)
+            </label>
+            <input
+              type="number"
+              placeholder="e.g. 150"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition text-xs"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+              Batch Expiry Date
+            </label>
+            <div className="relative">
+              <input
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-cyan-500/50 transition text-xs"
+              />
+              <FiCalendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none" />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => setOpenEdit(false)}
+              className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl font-bold transition text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleUpdate}
+              className="flex-grow py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl font-bold shadow-lg transition duration-200 transform active:scale-95 text-xs text-center"
+            >
+              Save Update
+            </button>
+          </div>
+        </div>
+      </CustomDialog>
+
+      {/* Details Dialog */}
+      <CustomDialog open={openDetails} onClose={() => setOpenDetails(false)} title="Clinical Inventory Batch Details">
+        {selectedItem && (
+          <div className="space-y-5 text-left">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-0.5">Medicine Name</p>
+              <h2 className="text-xl font-extrabold text-white leading-tight">{selectedItem.medicine.name}</h2>
+            </div>
+
+            <div className="bg-white/5 border border-white/5 p-4 rounded-xl space-y-3 text-xs leading-relaxed">
+              <p>
+                <strong className="text-gray-400 uppercase tracking-widest text-[9px] block mb-1">Composition:</strong> 
+                <span className="text-white text-sm font-bold">{selectedItem.medicine.composition || "N/A"}</span>
+              </p>
+              <p className="border-t border-white/5 pt-2">
+                <strong className="text-gray-400 uppercase tracking-widest text-[9px] block mb-1">Manufacturer:</strong> 
+                <span className="text-white text-sm font-semibold">{selectedItem.medicine.manufacturer || "N/A"}</span>
+              </p>
+              <p className="border-t border-white/5 pt-2">
+                <strong className="text-gray-400 uppercase tracking-widest text-[9px] block mb-1">Usage:</strong> 
+                <span className="text-gray-300 text-xs">{selectedItem.medicine.usage || "N/A"}</span>
+              </p>
+              <p className="border-t border-white/5 pt-2">
+                <strong className="text-gray-400 uppercase tracking-widest text-[9px] block mb-1">Safety Precautions:</strong> 
+                <span className="text-gray-300 text-xs">{selectedItem.medicine.precautions || "N/A"}</span>
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div className="bg-white/5 border border-white/5 p-3.5 rounded-xl">
+                <span className="text-gray-400 block uppercase tracking-widest text-[9px] font-bold">Quantity</span>
+                <span className="text-lg font-bold text-white mt-1 block">{selectedItem.quantity} units</span>
+              </div>
+              <div className="bg-white/5 border border-white/5 p-3.5 rounded-xl">
+                <span className="text-gray-400 block uppercase tracking-widest text-[9px] font-bold">Expiry Date</span>
+                <span className="text-sm font-bold text-amber-300 mt-1.5 block">{selectedItem.expiryDate.split("T")[0]}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setOpenDetails(false)}
+              className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl transition text-xs mt-2"
+            >
+              Close Details
+            </button>
           </div>
         )}
       </CustomDialog>

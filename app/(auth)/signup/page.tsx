@@ -1,12 +1,17 @@
 "use client";
-import { redirect } from "next/navigation";
+
+import { useRouter } from "next/navigation";
 import { register } from "@/utils/auth";
 import Form from 'next/form';
 import { useToast } from "@/context/ToastContext";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function SignupPage() {
     const { showToast } = useToast();
+    const router = useRouter();
+    const [loading, setLoading] = useState(false);
+    
     const [nameError, setNameError] = useState<string | null>(null);
     const [emailError, setEmailError] = useState<string | null>(null);
     const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -16,7 +21,6 @@ export default function SignupPage() {
     const validateForm = (form: HTMLFormElement): boolean => {
         let isValid = true;
 
-        // Reset errors
         setNameError(null);
         setEmailError(null);
         setPasswordError(null);
@@ -69,124 +73,140 @@ export default function SignupPage() {
             return;
         }
 
-        const boo = await register(form.namee.value, form.email.value, form.password.value, form.gender.value, form.phone.value);
-        if (boo) {
-            showToast("User Created Successfully", "success");
-            redirect("/login");
-        } else {
-            showToast("Error Creating User", "error");
+        setLoading(true);
+        try {
+            const success = await register(
+                form.namee.value,
+                form.email.value,
+                form.password.value,
+                form.gender.value,
+                form.phone.value
+            );
+            if (success) {
+                showToast("User Created Successfully", "success");
+                router.push("/login");
+            } else {
+                showToast("Error Creating User. Email might be in use.", "error");
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("An error occurred during registration", "error");
+        } finally {
+            setLoading(false);
         }
-    }
+    };
 
     return (
-        <div className="flex flex-row items-center justify-center">
-            <Form
-                action={""}
-                onSubmit={handleSignup}
-                className="flex flex-col items-center justify-center p-10 bg-gray-900 rounded-lg shadow-md"
-            >
-                <h1 className="text-2xl font-bold text-white-800 mb-6">Signup</h1>
-                <div className="w-full mb-4">
-                    <label htmlFor="Name" className="block text-sm font-medium text-white-700 mb-1">
-                        Name*
-                    </label>
-                    <input
-                        type="text"
-                        name="Name"
-                        id="namee"
-                        placeholder="Enter your Full Name"
-                        required
-                        className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${nameError ? 'border-red-500' : 'border-gray-300'}`}
-                    />
-                    {nameError && <p className="text-red-500 text-sm mt-1">{nameError}</p>}
-                </div>
-                <div className="w-full mb-4">
-                    <label htmlFor="email" className="block text-sm font-medium text-white-700 mb-1">
-                        Email*
-                    </label>
-                    <input
-                        type="email"
-                        name="email"
-                        id="email"
-                        placeholder="Enter your email"
-                        required
-                        className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${emailError ? 'border-red-500' : 'border-gray-300'}`}
-                    />
-                    {emailError && <p className="text-red-500 text-sm mt-1">{emailError}</p>}
-                </div>
-                <div className="w-full mb-6">
-                    <label htmlFor="password" className="block text-sm font-medium text-white-700 mb-1">
-                        Password*
-                    </label>
-                    <input
-                        type="password"
-                        name="password"
-                        id="password"
-                        placeholder="Enter your password"
-                        required
-                        className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${passwordError ? 'border-red-500' : 'border-gray-300'}`}
-                    />
-                    {passwordError && <p className="text-red-500 text-sm mt-1">{passwordError}</p>}
-                </div>
-                <div className="w-full mb-6">
-                    <label className="block text-sm font-medium text-white-700 mb-1">
-                        Gender*
-                    </label>
-                    <div className="flex items-center space-x-4">
-                        <label className="flex items-center">
-                            <input
-                                type="radio"
-                                name="gender"
-                                value="male"
-                                required
-                                className={`form-radio text-blue-600 ${genderError ? 'border-red-500' : ''}`}
-                            />
-                            <span className="ml-2 text-white">Male</span>
-                        </label>
-                        <label className="flex items-center">
-                            <input
-                                type="radio"
-                                name="gender"
-                                value="female"
-                                required
-                                className={`form-radio text-blue-600 ${genderError ? 'border-red-500' : ''}`}
-                            />
-                            <span className="ml-2 text-white">Female</span>
-                        </label>
-                        <label className="flex items-center">
-                            <input
-                                type="radio"
-                                name="gender"
-                                value="other"
-                                required
-                                className={`form-radio text-blue-600 ${genderError ? 'border-red-500' : ''}`}
-                            />
-                            <span className="ml-2 text-white">Other</span>
-                        </label>
-                    </div>
-                    {genderError && <p className="text-red-500 text-sm mt-1">{genderError}</p>}
-                </div>
-                <div className="w-full mb-6">
-                    <label htmlFor="phone" className="block text-sm font-medium text-white-700 mb-1">
-                        Phone*
-                    </label>
-                    <input
-                        type="phone"
-                        name="phone"
-                        id="phone"
-                        placeholder="Enter your phone"
-                        required
-                        className={`w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${phoneError ? 'border-red-500' : 'border-gray-300'}`}
-                    />
-                    {phoneError && <p className="text-red-500 text-sm mt-1">{phoneError}</p>}
-                </div>
-                <button
-                    type="submit"
-                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-300"
+        <div className="w-full max-w-md mx-auto p-6">
+            <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-8 shadow-2xl transition duration-300">
+                <h1 className="text-3xl font-extrabold text-white text-center mb-2 tracking-tight">Signup</h1>
+                <p className="text-gray-400 text-sm text-center mb-8">Create your MediQ account</p>
+                
+                <Form
+                    action={""}
+                    onSubmit={handleSignup}
+                    className="flex flex-col space-y-5"
                 >
-                    SignUp
-                </button>
-            </Form>
+                    <div>
+                        <label htmlFor="namee" className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
+                            Full Name*
+                        </label>
+                        <input
+                            type="text"
+                            name="Name"
+                            id="namee"
+                            placeholder="John Doe"
+                            required
+                            className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition duration-200 ${nameError ? 'border-red-500/50' : 'border-white/10'}`}
+                        />
+                        {nameError && <p className="text-red-400 text-xs mt-1.5 font-medium">{nameError}</p>}
+                    </div>
+
+                    <div>
+                        <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
+                            Email Address*
+                        </label>
+                        <input
+                            type="email"
+                            name="email"
+                            id="email"
+                            placeholder="you@example.com"
+                            required
+                            className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition duration-200 ${emailError ? 'border-red-500/50' : 'border-white/10'}`}
+                        />
+                        {emailError && <p className="text-red-400 text-xs mt-1.5 font-medium">{emailError}</p>}
+                    </div>
+
+                    <div>
+                        <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
+                            Password*
+                        </label>
+                        <input
+                            type="password"
+                            name="password"
+                            id="password"
+                            placeholder="••••••••"
+                            required
+                            className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition duration-200 ${passwordError ? 'border-red-500/50' : 'border-white/10'}`}
+                        />
+                        {passwordError && <p className="text-red-400 text-xs mt-1.5 font-medium">{passwordError}</p>}
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">
+                            Gender*
+                        </label>
+                        <div className="flex items-center space-x-6">
+                            {["male", "female", "other"].map((g) => (
+                                <label key={g} className="flex items-center cursor-pointer select-none">
+                                    <input
+                                        type="radio"
+                                        name="gender"
+                                        value={g}
+                                        required
+                                        className="form-radio text-blue-600 border-white/10 bg-white/5 focus:ring-blue-500/50 h-4 w-4"
+                                    />
+                                    <span className="ml-2 text-sm text-gray-300 capitalize">{g}</span>
+                                </label>
+                            ))}
+                        </div>
+                        {genderError && <p className="text-red-400 text-xs mt-1.5 font-medium">{genderError}</p>}
+                    </div>
+
+                    <div>
+                        <label htmlFor="phone" className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
+                            Phone Number*
+                        </label>
+                        <input
+                            type="text"
+                            name="phone"
+                            id="phone"
+                            placeholder="10-digit number"
+                            required
+                            className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition duration-200 ${phoneError ? 'border-red-500/50' : 'border-white/10'}`}
+                        />
+                        {phoneError && <p className="text-red-400 text-xs mt-1.5 font-medium">{phoneError}</p>}
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg transition duration-250 transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50"
+                    >
+                        {loading ? "Creating Account..." : "Sign Up"}
+                    </button>
+                </Form>
+
+                <div className="mt-8 text-center text-sm text-gray-400">
+                    Already have an account?{" "}
+                    <Link
+                        href="/login"
+                        className="font-semibold text-blue-400 hover:text-blue-300 transition duration-200"
+                    >
+                        Login
+                    </Link>
+                </div>
+            </div>
         </div>
     );
 }

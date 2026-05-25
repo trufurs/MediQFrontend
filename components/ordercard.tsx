@@ -54,7 +54,7 @@ const Cardo: React.FC<CardoProps> = ({ order }) => {
                 <span className="font-semibold">Quantity:</span> {item.quantity}
               </p>
               <p className="text-sm text-gray-600">
-                <span className="font-semibold">Price:</span> ${item.price.toFixed(2)}
+                <span className="font-semibold">Price:</span> ₹{item.price.toFixed(2)}
               </p>
               <p className="text-sm text-gray-600">
                 <span className="font-semibold">Expiry Date:</span> {new Date(item.expiryDate).toLocaleDateString()}
