@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
+
+import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useEffect, useState } from "react";
-import React from "react";
-import AddMedicineDialog from "@/components/AddMedicineDialog"; // Import the dialog component
 import Link from "next/link";
 import { useToast } from "@/context/ToastContext";
+import AddMedicineDialog from "@/components/AddMedicineDialog";
+import CustomDialog from "@/components/CustomDialog";
+import { fetchCustomerOrders } from "@/utils/management";
 
 interface MedicineItem {
   name: string;
@@ -18,425 +20,462 @@ interface MedicineItem {
 interface Order {
   _id: string;
   orderDate: string;
-  seller: string;
+  seller?: string;
+  customer?: {
+    name: string;
+    email: string;
+    phone: number;
+  };
   totalItems: number;
   items: MedicineItem[];
   remarks: string;
+  status: 'pending' | 'processed' | 'completed' | 'cancelled';
+  orderType?: 'b2b' | 'b2c';
 }
 
 function OrdersPage() {
-  // ✅ State Management
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
+  const { showToast } = useToast();
+  const [role, setRole] = useState<string>("customer");
+
+  // State Management
+  const [b2bOrders, setB2bOrders] = useState<Order[]>([]);
+  const [b2cRequests, setB2cRequests] = useState<Order[]>([]);
+  const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<string>("all");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [showDialog, setShowDialog] = useState(false);
+
+  // Tabs for store-owner: 'supplier' (B2B) or 'customer-req' (B2C)
+  const [ownerTab, setOwnerTab] = useState<"supplier" | "customer-req">("supplier");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+
+  // Dialog State
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const { showToast } = useToast(); // Toast context for notifications
-
-  // ✅ Add Order Dialog States
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [newOrder, setNewOrder] = useState({
-    seller: "",
-    remarks: "",
-    items: [{ name: "", quantity: 0, price: 0, expiryDate: "", type: "" }],
-  });
-  const host = `${process.env.NEXT_PUBLIC_BACKEND}`;
-  const API_URL = `${host}/order/`;
-  const ORDERS_PER_PAGE = 6;
-
-  // ✅ Add Medicine Dialog States
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showAddMedicineDialog, setShowAddMedicineDialog] = useState(false);
 
-  const handleMedicineAdded = (medicine: any) => {
-    console.log("New medicine added:", medicine);
-    showToast("New medicine added successfully!", "success"); // Success toast
-    // Perform any action with the new medicine (e.g., update state or refresh data)
+  const host = `${process.env.NEXT_PUBLIC_BACKEND}`;
+
+  // Helper to fetch authorization headers
+  const getHeaders = () => {
+    const token = localStorage.getItem("auth_token");
+    return { Authorization: `Bearer ${token}` };
   };
 
-  // ✅ Fetch Orders Data with Bearer Token
-  const fetchOrders = async () => {
+  // Get User Role
+  useEffect(() => {
+    const userData = localStorage.getItem("user_data");
+    if (userData) {
+      try {
+        const parsed = JSON.parse(userData);
+        setRole(parsed.role || "customer");
+      } catch (err) {
+        console.error("Error parsing user data:", err);
+      }
+    }
+  }, []);
+
+  // Fetch all orders depending on role
+  const fetchAllOrders = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
       const token = localStorage.getItem("auth_token");
-      const response = await axios.get(API_URL, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      if (!token) {
+        setError("Please log in to view orders.");
+        setLoading(false);
+        return;
+      }
 
-      const mappedOrders: Order[] = response.data.map((order: any) => ({
-        _id: order._id,
-        orderDate: order.orderDate,
-        seller: order.seller,
-        totalItems: order.totalItems,
-        items: order.medicines.map((medicine: any) => ({
-          name: medicine.medicine_id.name,
-          quantity: medicine.quantity,
-          price: medicine.price,
-          expiryDate: medicine.expiry,
-          type: medicine.type,
-        })),
-        remarks: order.remarks || "No remarks",
-        status: order.status,
+      if (role === "store-owner") {
+        // Fetch Supplier (B2B) orders
+        const b2bRes = await axios.get(`${host}/order`, { headers: getHeaders() });
+        const mappedB2b: Order[] = b2bRes.data.map((o: any) => ({
+          _id: o._id,
+          orderDate: o.orderDate || o.createdAt,
+          seller: o.seller || "Supplier",
+          totalItems: o.totalItems,
+          status: o.status,
+          orderType: o.orderType || 'b2b',
+          items: o.medicines.map((m: any) => ({
+            name: m.medicine_id?.name || "Unknown Medicine",
+            quantity: m.quantity,
+            price: m.price,
+            expiryDate: m.expiry,
+            type: m.type || "renew",
+          })),
+          remarks: o.remarks || "B2B Restock Order",
+        }));
+        setB2bOrders(mappedB2b);
 
-      }));
-
-      setOrders(mappedOrders);
-      setFilteredOrders(mappedOrders);
-      showToast("Orders fetched successfully!", "success"); // Success toast
-    } catch (err) {
+        // Fetch Customer (B2C) requests
+        const b2cRes = await fetchCustomerOrders();
+        const mappedB2c: Order[] = b2cRes.map((o: any) => ({
+          _id: o._id,
+          orderDate: o.orderDate || o.createdAt,
+          customer: o.customer || { name: "Guest Customer", email: "N/A", phone: 0 },
+          totalItems: o.totalItems,
+          status: o.status,
+          orderType: 'b2c',
+          items: o.medicines.map((m: any) => ({
+            name: m.medicine_id?.name || "Unknown Medicine",
+            quantity: m.quantity,
+            price: m.price,
+            expiryDate: m.expiry,
+            type: m.type || "renew",
+          })),
+          remarks: o.remarks || "Customer Request",
+        }));
+        setB2cRequests(mappedB2c);
+      } else {
+        // Fetch Customer B2C orders history
+        const customerRes = await fetchCustomerOrders();
+        const mappedCust: Order[] = customerRes.map((o: any) => ({
+          _id: o._id,
+          orderDate: o.orderDate || o.createdAt,
+          totalItems: o.totalItems,
+          status: o.status,
+          orderType: 'b2c',
+          items: o.medicines.map((m: any) => ({
+            name: m.medicine_id?.name || "Unknown Medicine",
+            quantity: m.quantity,
+            price: m.price,
+            expiryDate: m.expiry,
+            type: m.type || "renew",
+          })),
+          remarks: o.remarks || "My Order Request",
+        }));
+        setCustomerOrders(mappedCust);
+      }
+    } catch (err: any) {
       console.error("Error fetching orders:", err);
-      setError("Failed to fetch orders. Please try again later.");
-      showToast("Failed to fetch orders. Please try again.", "error"); // Error toast
+      setError("Failed to fetch orders.");
+      showToast("Error loading order list.", "error");
     } finally {
       setLoading(false);
     }
   };
+
   useEffect(() => {
-    fetchOrders();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (role) {
+      fetchAllOrders();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
 
-  // ✅ Handle Add Order Form Submission
-  const handleAddOrder = async () => {
+  // Handle order status updates (Approve/Complete or Reject/Cancel) B2C request
+  const handleUpdateStatus = async (orderId: string, nextStatus: 'completed' | 'cancelled') => {
     try {
-      const token = localStorage.getItem("auth_token");
-      const response = await axios.post(
-        API_URL,
-        {
-          seller: newOrder.seller,
-          remarks: newOrder.remarks,
-          items: newOrder.items,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+      const response = await axios.put(
+        `${host}/order/${orderId}`,
+        { status: nextStatus },
+        { headers: getHeaders() }
       );
-
-      // Add the new order to the orders list
-      setOrders((prevOrders) => [...prevOrders, response.data]);
-      setFilteredOrders((prevOrders) => [...prevOrders, response.data]);
-      setShowAddDialog(false); // Close the dialog
-      setNewOrder({
-        seller: "",
-        remarks: "",
-        items: [{ name: "", quantity: 0, price: 0, expiryDate: "", type: "" }],
-      });
-      showToast("Order added successfully!", "success"); // Success toast
-    } catch (err) {
-      console.error("Error adding order:", err);
-      showToast("Failed to add order. Please try again.", "error"); // Error toast
+      showToast(`Order has been marked as ${nextStatus}!`, "success");
+      
+      // Update local state
+      setB2cRequests((prev) =>
+        prev.map((order) => (order._id === orderId ? { ...order, status: nextStatus } : order))
+      );
+    } catch (err: any) {
+      console.error("Error updating order status:", err);
+      showToast(err.response?.data?.error || "Failed to update order status.", "error");
     }
   };
 
-  // ✅ Handle Input Changes for Add Order Form
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, index: number) => {
-    const { name, value } = e.target;
-    const updatedItems = [...newOrder.items];
-    updatedItems[index] = { ...updatedItems[index], [name]: value };
-    setNewOrder({ ...newOrder, items: updatedItems });
+  const handleMedicineAdded = (medicine: any) => {
+    showToast(`Medicine "${medicine.name}" created!`, "success");
+    setShowAddMedicineDialog(false);
   };
 
-  const handleAddItem = () => {
-    setNewOrder({
-      ...newOrder,
-      items: [...newOrder.items, { name: "", quantity: 0, price: 0, expiryDate: "", type: "" }],
-    });
-    showToast("New item added successfully.", "success"); // Success toast
-  };
-
-  const handleRemoveItem = (index: number) => {
-    const updatedItems = newOrder.items.filter((_, i) => i !== index);
-    setNewOrder({ ...newOrder, items: updatedItems });
-    showToast("Item removed successfully.", "success"); // Success toast
-  };
-
-  // ✅ Filter Orders
-  const handleFilterChange = (filter: string) => {
-    setFilter(filter);
-    if (filter === "all") {
-      setFilteredOrders(orders);
-      showToast("Showing all orders.", "success"); // Success toast
-    } else {
-      setFilteredOrders(orders.filter((order) => order.remarks === filter));
-      showToast(`Filter applied: ${filter}`, "success"); // Success toast
-    }
-  };
-
-  // ✅ Pagination
-  const indexOfLastOrder = currentPage * ORDERS_PER_PAGE;
-  const indexOfFirstOrder = indexOfLastOrder - ORDERS_PER_PAGE;
-  const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
-
-  const totalPages = Math.ceil(filteredOrders.length / ORDERS_PER_PAGE);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  // ✅ Open Dialog for Order Details
   const handleOrderClick = (order: Order) => {
     setSelectedOrder(order);
-    setShowDialog(true);
+    setShowDetailsDialog(true);
   };
 
-  const closeDialog = () => {
-    setShowDialog(false);
-    setSelectedOrder(null);
+  const renderStatusBadge = (status: Order["status"]) => {
+    const stylesMap = {
+      pending: "bg-amber-500/10 border-amber-500/30 text-amber-400",
+      processed: "bg-blue-500/10 border-blue-500/30 text-blue-400",
+      completed: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
+      cancelled: "bg-rose-500/10 border-rose-500/30 text-rose-400",
+    };
+    return (
+      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${stylesMap[status]}`}>
+        {status.toUpperCase()}
+      </span>
+    );
   };
 
-  // ✅ Render Orders
-  const renderOrders = () => {
-    if (currentOrders.length === 0) {
-      return <p className="text-gray-400">No orders found.</p>;
-    }
-
-    return currentOrders.map((order) => (
-      <div
-        key={order._id}
-        className="cursor-pointer p-4 border border-gray-600 rounded-md bg-gray-800 hover:bg-gray-700 transition"
-        onClick={() => handleOrderClick(order)}
-      >
-        <p><span className="font-semibold">Order ID:</span> {order._id}</p>
-        <p><span className="font-semibold">Date:</span> {order.orderDate}</p>
-        <p><span className="font-semibold">Seller:</span> {order.seller}</p>
-        <p><span className="font-semibold">Items:</span> {order.totalItems}</p>
-        <p><span className="font-semibold">Remarks:</span> {order.remarks}</p>
-      </div>
-    ));
+  const getFilteredList = (list: Order[]) => {
+    if (filterStatus === "all") return list;
+    return list.filter((o) => o.status === filterStatus);
   };
+
+  const listToRender = role === "store-owner"
+    ? (ownerTab === "supplier" ? b2bOrders : b2cRequests)
+    : customerOrders;
+
+  const filteredListToRender = getFilteredList(listToRender);
 
   return (
-    <div className="min-h-screen bg-black text-white p-6">
-      <h1 className="text-3xl font-bold mb-6">Orders</h1>
+    <div className="w-full max-w-6xl mx-auto px-6 py-8">
+      {/* Header and Controls */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 text-left">
+        <div>
+          <h1 className="text-3xl font-extrabold text-white tracking-tight">Orders Panel</h1>
+          <p className="text-gray-400 text-sm mt-1">
+            {role === "store-owner"
+              ? "Manage supplier restock orders and view customer prescriptions."
+              : "Review your requested medicine orders."}
+          </p>
+        </div>
 
-      {/* ✅ Filter Options */}
-      <div className="mb-6 flex items-center space-x-4">
-        <select
-          value={filter}
-          onChange={(e) => handleFilterChange(e.target.value)}
-          className="p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
-        >
-          <option value="all">All</option>
-          <option value="pending">Pending</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-        <Link href="/orders/add">
-          <button className="bg-gray-700 text-white px-4 py-2 rounded-md shadow-md hover:bg-gray-800 transition">
-            Add Order
-          </button>
-        </Link>
-        <button
-          onClick={() => setShowAddMedicineDialog(true)} // Open AddMedicineDialog
-          className="bg-indigo-600 text-white px-4 py-2 rounded-md shadow-md hover:bg-indigo-700 transition"
-        >
-          Add Medicine
-        </button>
+        {/* Global actions */}
+        <div className="flex items-center space-x-3 self-start md:self-auto">
+          {role === "store-owner" && (
+            <>
+              <Link href="/orders/add">
+                <button className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-md transition duration-200">
+                  New Supplier Order
+                </button>
+              </Link>
+              <button
+                onClick={() => setShowAddMedicineDialog(true)}
+                className="px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl transition duration-200"
+              >
+                Add Custom Medicine
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* ✅ Add Medicine Dialog */}
-      {showAddMedicineDialog && (
-        <AddMedicineDialog
-          onClose={() => setShowAddMedicineDialog(false)} // Close the dialog
-          onMedicineAdded={handleMedicineAdded} // Handle the added medicine
-        />
-      )}
+      {/* Tabs and Filtering */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/10 pb-4 mb-6 gap-4 text-left">
+        {/* Tabs for store owners */}
+        {role === "store-owner" ? (
+          <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+            <button
+              onClick={() => { setOwnerTab("supplier"); setFilterStatus("all"); }}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                ownerTab === "supplier" ? "bg-white/10 text-white shadow-md" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Supplier Restocks (B2B)
+            </button>
+            <button
+              onClick={() => { setOwnerTab("customer-req"); setFilterStatus("all"); }}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                ownerTab === "customer-req" ? "bg-white/10 text-white shadow-md" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Patient Requests (B2C)
+            </button>
+          </div>
+        ) : (
+          <span className="text-sm font-bold text-blue-400 uppercase tracking-wider">My Requests History</span>
+        )}
 
-      {/* ✅ Add Order Dialog */}
-      {showAddDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center">
-          <div className="bg-gray-900 rounded-lg shadow-lg w-96 max-h-[90vh] overflow-y-auto">
-            <div className="bg-gray-800 text-white p-4 rounded-t-lg">
-              <h2 className="text-lg font-bold">Add New Order</h2>
-            </div>
-            <div className="p-6">
-              <input
-                type="text"
-                placeholder="Seller"
-                value={newOrder.seller}
-                onChange={(e) => setNewOrder({ ...newOrder, seller: e.target.value })}
-                className="w-full mb-4 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
-              />
-              <textarea
-                placeholder="Remarks"
-                value={newOrder.remarks}
-                onChange={(e) => setNewOrder({ ...newOrder, remarks: e.target.value })}
-                className="w-full mb-4 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
-              />
-              <h3 className="text-md font-semibold mb-2">Items</h3>
-              {newOrder.items.map((item, index) => (
-                <div key={index} className="mb-4">
-                  <input
-                    type="text"
-                    name="name"
-                    placeholder="Medicine Name"
-                    value={item.name}
-                    onChange={(e) => handleInputChange(e, index)}
-                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
-                  />
-                  <input
-                    type="number"
-                    name="quantity"
-                    placeholder="Quantity"
-                    value={item.quantity}
-                    onChange={(e) => handleInputChange(e, index)}
-                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
-                  />
-                  <input
-                    type="number"
-                    name="price"
-                    placeholder="Price"
-                    value={item.price}
-                    onChange={(e) => handleInputChange(e, index)}
-                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
-                  />
-                  <input
-                    type="date"
-                    name="expiryDate"
-                    placeholder="Expiry Date"
-                    value={item.expiryDate}
-                    onChange={(e) => handleInputChange(e, index)}
-                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
-                  />
-                  <select
-                    name="type"
-                    value={item.type}
-                    onChange={(e) => handleInputChange(e, index)}
-                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
-                  >
-                    <option value="">Select Type</option>
-                    <option value="new">New</option>
-                    <option value="renew">Renew</option>
-                  </select>
-                  <button
-                    onClick={() => handleRemoveItem(index)}
-                    className="text-red-400 hover:underline"
-                  >
-                    Remove Item
-                  </button>
+        {/* Filters */}
+        <div className="flex items-center space-x-3">
+          <span className="text-sm text-gray-400">Filter Status:</span>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+          >
+            <option className="text-black" value="all">All</option>
+            <option className="text-black" value="pending">Pending</option>
+            <option className="text-black" value="completed">Completed</option>
+            <option className="text-black" value="cancelled">Cancelled</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Main List */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+          <p className="text-gray-400 text-sm">Loading orders...</p>
+        </div>
+      ) : error ? (
+        <div className="text-center py-12 bg-rose-500/5 border border-rose-500/10 rounded-2xl">
+          <p className="text-rose-400 font-medium">{error}</p>
+          <button
+            onClick={fetchAllOrders}
+            className="mt-4 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-bold rounded-lg transition"
+          >
+            Retry Fetch
+          </button>
+        </div>
+      ) : filteredListToRender.length === 0 ? (
+        <div className="text-center py-16 bg-white/5 border border-white/5 rounded-2xl">
+          <p className="text-gray-400 text-base">No orders found.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredListToRender.map((order) => (
+            <div
+              key={order._id}
+              className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-2xl p-6 shadow-md transition duration-300 flex flex-col justify-between text-left"
+            >
+              <div>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <p className="text-[10px] text-gray-500 font-mono tracking-tight uppercase">ID: {order._id}</p>
+                    <p className="text-xs text-gray-400 font-semibold mt-0.5">
+                      {new Date(order.orderDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                  {renderStatusBadge(order.status)}
                 </div>
-              ))}
-              <button
-                onClick={handleAddItem}
-                className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
-              >
-                Add Item
-              </button>
-              <div className="mt-4 flex justify-end space-x-2">
-                <button
-                  onClick={() => setShowAddDialog(false)}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddOrder}
-                  className="bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
-                >
-                  Submit
-                </button>
+
+                {/* Display Seller or Customer info */}
+                {order.orderType === "b2c" && order.customer ? (
+                  <div className="mb-4 bg-white/5 p-3 rounded-xl border border-white/5">
+                    <p className="text-xs text-blue-400 font-bold uppercase tracking-wider mb-1">Customer</p>
+                    <p className="text-sm font-bold text-white">{order.customer.name}</p>
+                    {order.customer.phone > 0 && (
+                      <p className="text-xs text-gray-400 mt-0.5">Phone: {order.customer.phone}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mb-4 bg-white/5 p-3 rounded-xl border border-white/5">
+                    <p className="text-xs text-indigo-400 font-bold uppercase tracking-wider mb-1">Supplier</p>
+                    <p className="text-sm font-bold text-white">{order.seller}</p>
+                  </div>
+                )}
+
+                {/* Medicine Items */}
+                <div className="space-y-2.5 mb-6">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Medicines</p>
+                  {order.items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-sm">
+                      <span className="text-gray-200 font-medium truncate max-w-40">{item.name}</span>
+                      <span className="text-gray-400 font-bold">Qty: {item.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                {/* Remarks preview */}
+                <p className="text-xs text-gray-400 italic bg-white/5 px-3 py-2 rounded-xl mb-4 border border-white/5 truncate">
+                  Remarks: {order.remarks}
+                </p>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleOrderClick(order)}
+                    className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-bold transition duration-200"
+                  >
+                    View Details
+                  </button>
+
+                  {/* B2C Pending Actions */}
+                  {role === "store-owner" && order.orderType === "b2c" && order.status === "pending" && (
+                    <>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleUpdateStatus(order._id, "completed"); }}
+                        className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition duration-200"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleUpdateStatus(order._id, "cancelled"); }}
+                        className="py-2.5 px-3 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition duration-200"
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          ))}
         </div>
       )}
 
-      {/* ✅ Loading State */}
-      {loading && <p className="text-gray-400">Loading orders...</p>}
-
-      {/* ✅ Error State */}
-      {error && <p className="text-red-400">{error}</p>}
-
-      {/* ✅ Orders List */}
-      {!loading && !error && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {renderOrders()}
-        </div>
-      )}
-
-      {/* ✅ Pagination */}
-      <div className="mt-6 flex justify-center space-x-2">
-        {Array.from({ length: totalPages }, (_, index) => (
-          <button
-            key={index}
-            onClick={() => handlePageChange(index + 1)}
-            className={`px-4 py-2 rounded-md ${
-              currentPage === index + 1
-                ? "bg-gray-700 text-white"
-                : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-            }`}
-          >
-            {index + 1}
-          </button>
-        ))}
-      </div>
-
-      {/* ✅ Dialog for Order Details */}
-      {showDialog && selectedOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center">
-          <div className="bg-gray-900 rounded-lg shadow-lg w-96 max-h-[90vh] overflow-y-auto">
-            <div className="flex  justify-between items-center bg-gray-800 text-white p-4 rounded-t-lg">
-              <h2 className="text-lg font-bold">Order Details</h2>
-              <button
-                onClick={closeDialog}
-                className=" bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 transition"
-              >
-                Close
-              </button>
+      {/* Details Modal */}
+      {selectedOrder && (
+        <CustomDialog
+          open={showDetailsDialog}
+          onClose={() => setShowDetailsDialog(false)}
+          title="Order Full Details"
+        >
+          <div className="space-y-6 text-left">
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Order Identifier</p>
+              <p className="text-sm font-mono text-white select-all">{selectedOrder._id}</p>
+              <p className="text-xs text-gray-400 mt-1">
+                Placed on {new Date(selectedOrder.orderDate).toLocaleString()}
+              </p>
             </div>
-            <div className="p-6">
-              {selectedOrder.items.map((item, index) => (
-                <div key={index} className="mb-4">
-                  <input
-                    type="text"
-                    name="name"
-                    placeholder="Medicine Name"
-                    value={item.name}
-                    onChange={(e) => handleInputChange(e, index)}
-                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
-                  />
-                  <input
-                    type="number"
-                    name="quantity"
-                    placeholder="Quantity"
-                    value={item.quantity}
-                    onChange={(e) => handleInputChange(e, index)}
-                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
-                  />
-                  <input
-                    type="number"
-                    name="price"
-                    placeholder="Price"
-                    value={item.price}
-                    onChange={(e) => handleInputChange(e, index)}
-                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
-                  />
-                  <input
-                    type="text"
-                    name="expiryDate"
-                    placeholder="Expiry Date"
-                    value={item.expiryDate.split("T")[0]} 
-                    onChange={(e) => handleInputChange(e, index)}
-                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
-                  />
-                  <select
-                    name="type"
-                    value={item.type}
-                    onChange={(e) => handleInputChange(e, index)}
-                    className="w-full mb-2 p-2 border border-gray-600 rounded-md bg-gray-800 text-white focus:ring-2 focus:ring-gray-400"
-                  >
-                    <option value="">Select Type</option>
-                    <option value="new">New</option>
-                    <option value="renew">Renew</option>
-                  </select>
+
+            {selectedOrder.orderType === "b2c" && selectedOrder.customer ? (
+              <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                <p className="text-xs text-blue-400 font-bold uppercase tracking-wider mb-2">Customer Details</p>
+                <p className="text-sm text-white"><span className="font-semibold text-gray-400">Name:</span> {selectedOrder.customer.name}</p>
+                <p className="text-sm text-white mt-1"><span className="font-semibold text-gray-400">Email:</span> {selectedOrder.customer.email}</p>
+                {selectedOrder.customer.phone > 0 && (
+                  <p className="text-sm text-white mt-1"><span className="font-semibold text-gray-400">Phone:</span> {selectedOrder.customer.phone}</p>
+                )}
+              </div>
+            ) : (
+              <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                <p className="text-xs text-indigo-400 font-bold uppercase tracking-wider mb-1">Supplier Details</p>
+                <p className="text-sm text-white font-bold">{selectedOrder.seller}</p>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-white/10 pb-1.5">
+                Items Requested ({selectedOrder.totalItems})
+              </p>
+              {selectedOrder.items.map((item, idx) => (
+                <div key={idx} className="bg-white/5 p-3 rounded-xl border border-white/5 text-sm space-y-1">
+                  <p className="font-semibold text-white">{item.name}</p>
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>Quantity: <strong className="text-white">{item.quantity}</strong></span>
+                    <span>Price: <strong className="text-white">₹{item.price.toFixed(2)}</strong></span>
+                  </div>
+                  {item.expiryDate && (
+                    <p className="text-[10px] text-amber-300">
+                      Expiry batch: {new Date(item.expiryDate).toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
+
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Remarks</p>
+              <p className="text-sm text-gray-300 bg-white/5 border border-white/5 p-3 rounded-xl italic">
+                {selectedOrder.remarks}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Order Status</p>
+              {renderStatusBadge(selectedOrder.status)}
+            </div>
+
+            <button
+              onClick={() => setShowDetailsDialog(false)}
+              className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl transition duration-200 mt-2"
+            >
+              Close
+            </button>
           </div>
-        </div>
+        </CustomDialog>
+      )}
+
+      {/* Add Medicine Dialog */}
+      {showAddMedicineDialog && (
+        <AddMedicineDialog
+          onClose={() => setShowAddMedicineDialog(false)}
+          onMedicineAdded={handleMedicineAdded}
+        />
       )}
     </div>
   );

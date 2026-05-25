@@ -60,3 +60,11 @@ export const checkPendingRequests = async (token: string) => {
     });
     return response.data;
     }
+
+export const deleteRequest = async (token: string, requestId: string) => {
+  if (!token) throw new Error("Authentication token is missing.");
+  const response = await axios.delete(`${API_URL}${requestId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return response.data;
+};

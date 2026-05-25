@@ -86,5 +86,31 @@ export const deleteInventory = async (id: string) => {
     headers: getHeaders(),
   });
   return response.data;
-}
+};
+
+// Add a customer B2C order
+export const createCustomerOrder = async (orderPayload: {
+  store: string;
+  medicines: {
+    medicine_id: string;
+    quantity: number;
+    expiry: string;
+    price: number;
+  }[];
+  totalItems: number;
+  remarks: string;
+}) => {
+  const response = await axios.post(`${API_BASE_URL}/order/customer`, orderPayload, {
+    headers: getHeaders(),
+  });
+  return response.data;
+};
+
+// Fetch customer B2C orders (either for customer or store owner)
+export const fetchCustomerOrders = async () => {
+  const response = await axios.get(`${API_BASE_URL}/order/customer`, {
+    headers: getHeaders(),
+  });
+  return response.data;
+};
 

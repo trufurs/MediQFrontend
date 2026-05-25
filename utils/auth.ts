@@ -37,4 +37,23 @@ export const register = async (name:string , email: string, password: string , g
 
     if (!res.ok) return false;
     return await true;
-}
+};
+
+export const forgotPassword = async (email: string) => {
+    const res = await fetch(`${host}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+    });
+    if (!res.ok) return false;
+    return await res.json();
+};
+
+export const resetPassword = async (email: string, otp: string, newPassword: string) => {
+    const res = await fetch(`${host}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp, newPassword }),
+    });
+    return res.ok;
+};
