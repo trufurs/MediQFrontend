@@ -112,7 +112,10 @@ function RequestsPage() {
 
   // Filter & Search logic
   const filteredRequests = requests.filter((request) => {
-    const matchesStatus = statusFilter === "all" ? true : request.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all"
+        ? true
+        : normalizeStatusForFilter(request.status) === statusFilter;
     const matchesSearch =
       request.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       request.licenseNumber.toLowerCase().includes(searchQuery.toLowerCase());

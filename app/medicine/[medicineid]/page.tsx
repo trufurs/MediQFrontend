@@ -48,9 +48,9 @@ interface MedicineData {
 export default function MedicineDetailsPage({
   params,
 }: {
-  params: { medicineid: string };
+  params: Promise<{ medicineid: string }>;
 }) {
-  const { medicineid } = params;
+  const { medicineid } = React.use(params);
   const { showToast } = useToast();
   
   const [stores, setStores] = useState<Store[]>([]);
