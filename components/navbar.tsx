@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import ReminderBell from "./reminderbell";
+import { fetchCustomerOrders } from "@/utils/management";
 
 const Navbar = () => {
   const [user, setUser] = useState<string>("temp");
@@ -40,6 +41,30 @@ const Navbar = () => {
     };
   }, []);
 
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+
+  // Poll pending B2C order counts
+  useEffect(() => {
+    if (user === "temp" || user === "admin") {
+      setPendingOrdersCount(0);
+      return;
+    }
+
+    const loadPendingCount = async () => {
+      try {
+        const data = await fetchCustomerOrders();
+        const pending = data.filter((o: any) => o.status === "pending").length;
+        setPendingOrdersCount(pending);
+      } catch (err) {
+        console.error("Error fetching navbar pending order counts:", err);
+      }
+    };
+
+    loadPendingCount();
+    const interval = setInterval(loadPendingCount, 40000);
+    return () => clearInterval(interval);
+  }, [user]);
+
   // Logout handler
   const handleLogout = () => {
     localStorage.removeItem("user_data");
@@ -70,10 +95,20 @@ const Navbar = () => {
         <Link href="/medicine" className="hover:text-blue-400">Medicine</Link>
         <Link href="/map" className="hover:text-blue-400">Map 🗺️</Link>
         {user === "store-owner" && (
-          <>
-            <Link href="/inventory" className="hover:text-blue-400">Inventory</Link>
-            <Link href="/orders" className="hover:text-blue-400">Orders</Link>
-          </>
+          <Link href="/inventory" className="hover:text-blue-400">Inventory</Link>
+        )}
+        {(user === "store-owner" || user === "customer") && (
+          <Link href="/orders" className="hover:text-blue-400 flex items-center gap-1.5">
+            <span>Orders</span>
+            {pendingOrdersCount > 0 && (
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white animate-pulse">
+                {pendingOrdersCount}
+              </span>
+            )}
+          </Link>
+        )}
+        {user === "admin" && (
+          <Link href="/admin" className="hover:text-blue-400">Admin Hub ⚙️</Link>
         )}
       </div>
 
@@ -97,7 +132,7 @@ const Navbar = () => {
             </div>
             {/* Dropdown Menu */}
             {isMenuOpen && (
-              <div className="hidden md:flex absolute right-0 mt-2 whitespace-pre-wrap w-auto w:max-60 bg-gray-700 rounded-md shadow-lg">
+              <div className="hidden md:flex flex-col absolute right-0 mt-2 whitespace-pre-wrap w-auto w:max-60 bg-gray-700 rounded-md shadow-lg">
                 <Link
                   href="/profile"
                   className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
@@ -106,6 +141,12 @@ const Navbar = () => {
                 </Link>
                 {user === "admin" && (
                   <>
+                  <Link
+                    href="/admin"
+                    className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
+                  >
+                    Admin Hub ⚙️
+                  </Link>
                   <Link
                     href="/requests"
                     className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
@@ -148,25 +189,39 @@ const Navbar = () => {
             </Link>
             
             {user === "store-owner" && (
-              <>
-                <Link
-                  href="/inventory"
-                  className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Inventory
-                </Link>
-                <Link
-                  href="/orders"
-                  className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Orders
-                </Link>
-              </>
+              <Link
+                href="/inventory"
+                className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Inventory
+              </Link>
+            )}
+            {(user === "store-owner" || user === "customer") && (
+              <Link
+                href="/orders"
+                className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <div className="flex justify-between items-center w-full">
+                  <span>Orders</span>
+                  {pendingOrdersCount > 0 && (
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-650 text-[10px] font-bold text-white">
+                      {pendingOrdersCount}
+                    </span>
+                  )}
+                </div>
+              </Link>
             )}
             {user === "admin" && (
               <>
+                  <Link
+                    href="/admin"
+                    className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Admin Hub ⚙️
+                  </Link>
                   <Link
                     href="/requests"
                     className="block px-4 py-2 text-sm hover:bg-gray-600 hover:text-blue-400"
@@ -175,7 +230,7 @@ const Navbar = () => {
                     Requests
                   </Link>
               </>
-                )}
+            )}
             {user === "temp" ? (
               <>
                 <Link
