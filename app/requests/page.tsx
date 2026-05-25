@@ -32,6 +32,12 @@ interface Request {
   updatedAt: string;
 }
 
+const normalizeStatusForFilter = (status: string) => {
+  if (status === "verified") return "completed";
+  if (status === "rejected") return "cancelled";
+  return status;
+};
+
 function RequestsPage() {
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +96,9 @@ function RequestsPage() {
 
   // Filtered requests based on status
   const filteredRequests = requests.filter((request) =>
-    statusFilter === "all" ? true : request.status === statusFilter
+    statusFilter === "all"
+      ? true
+      : normalizeStatusForFilter(request.status) === statusFilter
   );
 
   return (
