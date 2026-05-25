@@ -34,6 +34,12 @@ interface Request {
   updatedAt: string;
 }
 
+const normalizeStatusForFilter = (status: string) => {
+  if (status === "verified") return "completed";
+  if (status === "rejected") return "cancelled";
+  return status;
+};
+
 function RequestsPage() {
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,7 +112,10 @@ function RequestsPage() {
 
   // Filter & Search logic
   const filteredRequests = requests.filter((request) => {
-    const matchesStatus = statusFilter === "all" ? true : request.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all"
+        ? true
+        : normalizeStatusForFilter(request.status) === statusFilter;
     const matchesSearch =
       request.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       request.licenseNumber.toLowerCase().includes(searchQuery.toLowerCase());
