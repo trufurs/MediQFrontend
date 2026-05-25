@@ -77,7 +77,7 @@ export default function MedicineDetailsPage({
     const fetchMedicineData = async () => {
       try {
         const response = await axios.get(`${backendUrl}/search/${medicineid}`);
-        setMedicineData(response.data);
+        setMedicineData(response.data); 
       } catch (err) {
         console.error("Error fetching medicine details:", err);
         setError("Failed to fetch medicine details.");
