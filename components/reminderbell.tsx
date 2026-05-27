@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { fetchInventory } from "@/utils/management";
+import { FiBell } from "react-icons/fi";
 
 interface InventoryItem {
   _id: string;
@@ -120,20 +121,7 @@ const ReminderBell = () => {
         onClick={toggleMenu}
         className="relative p-2 text-gray-300 hover:text-white focus:outline-none transition-transform transform hover:scale-110"
       >
-        <svg
-          className="h-6 w-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-6-6C5.926 5 2.25 7.97 2.25 12.856V18a2.251 2.251 0 002.25 2.25c.984 0 1.857-.643 2.087-1.55A2.46 2.46 0 0012 21.75c0-.798.492-1.472 1.007-1.95A2.46 2.46 0 0015 19.25v-2.242z"
-          ></path>
-        </svg>
+        <FiBell className="h-6 w-6 hover-wiggle" />
         {notifications.length > 0 && (
           <div className="absolute top-0 right-0 flex items-center justify-center h-5 w-5 rounded-full bg-red-500 text-white text-xs font-bold border-2 border-gray-800">
             {notifications.length}

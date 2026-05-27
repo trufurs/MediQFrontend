@@ -5,6 +5,8 @@ import axios from "axios";
 import dynamic from "next/dynamic";
 import { useToast } from "@/context/ToastContext";
 import CustomDialog from "@/components/CustomDialog";
+// @ts-ignore
+const L = typeof window !== "undefined" ? require("leaflet") : null;
 import {
   FiBarChart2,
   FiUsers,
@@ -38,8 +40,8 @@ const TileLayer = dynamic(
   () => import("react-leaflet").then((mod) => mod.TileLayer),
   { ssr: false }
 );
-const CircleMarker = dynamic(
-  () => import("react-leaflet").then((mod) => mod.CircleMarker),
+const Marker = dynamic(
+  () => import("react-leaflet").then((mod) => mod.Marker),
   { ssr: false }
 );
 const Popup = dynamic(
@@ -49,9 +51,47 @@ const Popup = dynamic(
 
 import "leaflet/dist/leaflet.css";
 
+// ─── Custom DivIcon markers for request status ────────────────────────────────
+const makePinIcon = (color: string, glow: string, pulse?: boolean) =>
+  typeof window !== "undefined"
+    ? L.divIcon({
+        className: "",
+        html: `
+          <div style="position:relative;width:32px;height:44px;display:flex;flex-direction:column;align-items:center;">
+            ${
+              pulse
+                ? `<span style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:32px;height:32px;border-radius:50%;background:${color};opacity:0.3;animation:ping 1.5s cubic-bezier(0,0,0.2,1) infinite;"></span>`
+                : ""
+            }
+            <div style="
+              width:28px;height:28px;border-radius:50%;
+              background:${color};
+              border:2.5px solid rgba(255,255,255,0.8);
+              box-shadow:0 0 12px ${glow},0 2px 8px rgba(0,0,0,0.5);
+              display:flex;align-items:center;justify-content:center;
+              position:relative;z-index:1;
+            ">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+            </div>
+            <div style="width:2px;height:12px;background:${color};opacity:0.7;margin-top:1px;"></div>
+          </div>
+        `,
+        iconSize: [32, 44],
+        iconAnchor: [16, 44],
+        popupAnchor: [0, -46],
+      })
+    : null;
+
+const pendingMarkerIcon = makePinIcon("#f59e0b", "rgba(245,158,11,0.7)", true);
+const completedMarkerIcon = makePinIcon("#10b981", "rgba(16,185,129,0.7)", false);
+const cancelledMarkerIcon = makePinIcon("#ef4444", "rgba(239,68,68,0.7)", false);
+
 const host = `${process.env.NEXT_PUBLIC_BACKEND}`;
 
-type TabKey = "analytics" | "users" | "medicines" | "broadcasts" | "audit";
+type TabKey = "analytics" | "users" | "medicines" | "orders" | "broadcasts" | "audit";
 
 interface TabDef {
   key: TabKey;
@@ -63,6 +103,7 @@ const tabs: TabDef[] = [
   { key: "analytics", label: "Analytics", icon: <FiBarChart2 size={16} /> },
   { key: "users", label: "Users", icon: <FiUsers size={16} /> },
   { key: "medicines", label: "Medicines", icon: <FiDatabase size={16} /> },
+  { key: "orders", label: "Platform Orders", icon: <FiClock size={16} /> },
   { key: "broadcasts", label: "Broadcasts", icon: <FiRadio size={16} /> },
   { key: "audit", label: "Audit Log", icon: <FiShield size={16} /> },
 ];
@@ -188,6 +229,22 @@ export default function AdminPage() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleUserDelete = async (user: any) => {
+    if (!confirm(`Are you sure you want to permanently delete user "${user.name}" (${user.email}) and all their associated store/inventory assets? This action is irreversible.`)) return;
+    try {
+      await axios.delete(
+        `${host}/admin/users/${user._id}`,
+        { headers: getAuthHeaders() }
+      );
+      showToast(`User ${user.name} has been deleted successfully.`, "success");
+      fetchUsers();
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.response?.data?.message || "Failed to delete user account", "error");
+    }
+  };
+
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
       u.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
@@ -289,6 +346,7 @@ export default function AdminPage() {
     title: "",
     message: "",
     type: "info",
+    targetRole: "all",
   });
 
   const fetchAnnouncements = useCallback(async () => {
@@ -317,7 +375,7 @@ export default function AdminPage() {
         headers: getAuthHeaders(),
       });
       showToast("Announcement published!", "success");
-      setNewAnnouncement({ title: "", message: "", type: "info" });
+      setNewAnnouncement({ title: "", message: "", type: "info", targetRole: "all" });
       fetchAnnouncements();
     } catch (err) {
       console.error(err);
@@ -359,6 +417,34 @@ export default function AdminPage() {
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // PLATFORM ORDERS TAB STATE
+  // ═══════════════════════════════════════════════════════════════════════════
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [platformOrders, setPlatformOrders] = useState<any[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [orderSearch, setOrderSearch] = useState("");
+  const [orderTypeFilter, setOrderTypeFilter] = useState("all");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [showOrderDialog, setShowOrderDialog] = useState(false);
+
+  const fetchPlatformOrders = useCallback(async () => {
+    setOrdersLoading(true);
+    try {
+      const res = await axios.get(`${host}/order/dev`, {
+        headers: getAuthHeaders(),
+      });
+      setPlatformOrders(res.data);
+    } catch (err) {
+      console.error(err);
+      showToast("Failed to load platform orders", "error");
+    } finally {
+      setOrdersLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // TAB 5: AUDIT LOGS
   // ═══════════════════════════════════════════════════════════════════════════
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -395,6 +481,9 @@ export default function AdminPage() {
       case "medicines":
         fetchMedicines();
         break;
+      case "orders":
+        fetchPlatformOrders();
+        break;
       case "broadcasts":
         fetchAnnouncements();
         break;
@@ -402,7 +491,15 @@ export default function AdminPage() {
         fetchAuditLogs();
         break;
     }
-  }, [activeTab, fetchAnalytics, fetchUsers, fetchMedicines, fetchAnnouncements, fetchAuditLogs]);
+  }, [
+    activeTab,
+    fetchAnalytics,
+    fetchUsers,
+    fetchMedicines,
+    fetchPlatformOrders,
+    fetchAnnouncements,
+    fetchAuditLogs,
+  ]);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -421,12 +518,12 @@ export default function AdminPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex flex-wrap gap-2 mb-8">
+      <div className="flex overflow-x-auto md:flex-wrap gap-2 mb-8 pb-2 scrollbar-none">
         {tabs.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition duration-200 cursor-pointer ${
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition duration-200 cursor-pointer shrink-0 ${
               activeTab === tab.key
                 ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20"
                 : "bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-white"
@@ -487,13 +584,32 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Request Coordinates Heatmap */}
+              {/* Request Coordinates Map */}
               {analytics.requestPoints?.length > 0 && (
                 <div>
                   <h2 className="text-xs font-bold uppercase tracking-widest text-cyan-400 mb-4 flex items-center gap-2">
-                    Store Request Density Map
+                    Store Registration Density Map
                   </h2>
-                  <div className="w-full h-[400px] rounded-2xl overflow-hidden border border-white/10 shadow-xl relative z-10">
+                  {/* Map Legend */}
+                  <div className="flex flex-wrap gap-4 mb-3">
+                    {[
+                      { color: "#f59e0b", label: "Pending Review", pulse: true },
+                      { color: "#10b981", label: "Verified / Active", pulse: false },
+                      { color: "#ef4444", label: "Cancelled / Rejected", pulse: false },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center gap-2 text-[11px] text-gray-300">
+                        <div
+                          className="w-3.5 h-3.5 rounded-full border border-white/40 shadow-md flex-shrink-0"
+                          style={{
+                            background: item.color,
+                            boxShadow: `0 0 6px ${item.color}`,
+                          }}
+                        />
+                        {item.label}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="w-full h-[300px] md:h-[420px] rounded-2xl overflow-hidden border border-white/10 shadow-xl relative z-10">
                     <MapContainer
                       center={[
                         analytics.requestPoints[0]?.address?.latitude || 26.9,
@@ -504,31 +620,52 @@ export default function AdminPage() {
                     >
                       <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
                       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                      {analytics.requestPoints.map((rp: any, idx: number) => (
-                        <CircleMarker
-                          key={idx}
-                          center={[rp.address?.latitude || 0, rp.address?.longitude || 0]}
-                          radius={8}
-                          pathOptions={{
-                            fillColor:
-                              rp.status === "completed"
-                                ? "#10b981"
-                                : rp.status === "pending"
-                                ? "#f59e0b"
-                                : "#ef4444",
-                            color: "transparent",
-                            fillOpacity: 0.8,
-                          }}
-                        >
-                          <Popup>
-                            <div className="text-xs text-gray-900 font-sans">
-                              <strong>{rp.name}</strong>
-                              <br />
-                              Status: {rp.status}
-                            </div>
-                          </Popup>
-                        </CircleMarker>
-                      ))}
+                      {analytics.requestPoints.map((rp: any, idx: number) => {
+                        const lat = rp.address?.latitude;
+                        const lng = rp.address?.longitude;
+                        if (!lat || !lng) return null;
+                        const icon =
+                          rp.status === "completed"
+                            ? completedMarkerIcon
+                            : rp.status === "pending"
+                            ? pendingMarkerIcon
+                            : cancelledMarkerIcon;
+                        return (
+                          <Marker
+                            key={idx}
+                            position={[lat, lng]}
+                            icon={icon || undefined}
+                          >
+                            <Popup>
+                              <div className="text-xs text-gray-900 font-sans p-1">
+                                <strong className="text-sm block mb-1">{rp.name}</strong>
+                                <span
+                                  className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                                  style={{
+                                    background:
+                                      rp.status === "completed"
+                                        ? "#d1fae5"
+                                        : rp.status === "pending"
+                                        ? "#fef3c7"
+                                        : "#fee2e2",
+                                    color:
+                                      rp.status === "completed"
+                                        ? "#065f46"
+                                        : rp.status === "pending"
+                                        ? "#92400e"
+                                        : "#991b1b",
+                                  }}
+                                >
+                                  {rp.status?.toUpperCase()}
+                                </span>
+                                <p className="text-[10px] text-gray-500 mt-1.5 font-mono">
+                                  {lat.toFixed(4)}, {lng.toFixed(4)}
+                                </p>
+                              </div>
+                            </Popup>
+                          </Marker>
+                        );
+                      })}
                     </MapContainer>
                   </div>
                 </div>
@@ -654,7 +791,7 @@ export default function AdminPage() {
                       </button>
                       <button
                         onClick={() => handleSuspendToggle(user)}
-                        className={`px-3.5 py-2 rounded-xl text-[11px] font-bold transition flex items-center justify-center cursor-pointer ${
+                        className={`px-3 py-2 rounded-xl text-[11px] font-bold transition flex items-center justify-center cursor-pointer ${
                           user.isSuspended
                             ? "bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400"
                             : "bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400"
@@ -667,6 +804,15 @@ export default function AdminPage() {
                           <FiToggleLeft size={14} />
                         )}
                       </button>
+                      {user.role !== "customer" && user.role !== "store-owner" && (
+                        <button
+                          onClick={() => handleUserDelete(user)}
+                          className="px-3 py-2 bg-rose-600/10 hover:bg-rose-600/20 border border-rose-600/20 text-rose-400 rounded-xl text-[11px] font-bold transition flex items-center justify-center cursor-pointer"
+                          title="Delete Account"
+                        >
+                          <FiTrash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -864,7 +1010,7 @@ export default function AdminPage() {
               <FiPlus size={14} /> Publish New Broadcast
             </h2>
             <div className="space-y-4 relative z-10">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="md:col-span-2">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
                     Title <span className="text-cyan-400">*</span>
@@ -894,6 +1040,22 @@ export default function AdminPage() {
                     <option className="text-black" value="success">✅ Success</option>
                     <option className="text-black" value="warning">⚠️ Warning</option>
                     <option className="text-black" value="danger">🚨 Danger</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                    Target Audience
+                  </label>
+                  <select
+                    value={newAnnouncement.targetRole}
+                    onChange={(e) =>
+                      setNewAnnouncement({ ...newAnnouncement, targetRole: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:border-blue-500/50 transition text-xs"
+                  >
+                    <option className="text-black" value="all">👥 All Users</option>
+                    <option className="text-black" value="customer">👤 Customers</option>
+                    <option className="text-black" value="store-owner">🏪 Store Owners</option>
                   </select>
                 </div>
               </div>
@@ -955,10 +1117,13 @@ export default function AdminPage() {
                           <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
                             {a.message}
                           </p>
-                          <p className="text-[10px] text-gray-500 mt-1.5 flex items-center gap-1.5">
+                          <p className="text-[10px] text-gray-500 mt-1.5 flex items-center flex-wrap gap-1.5">
                             <FiClock size={10} />
                             {new Date(a.createdAt).toLocaleString()} • By{" "}
-                            {a.createdBy?.name || "System"}
+                            {a.createdBy?.name || "System"} •{" "}
+                            <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] font-extrabold uppercase text-cyan-400">
+                              Audience: {a.targetRole || "all"}
+                            </span>
                           </p>
                         </div>
                       </div>
@@ -995,6 +1160,215 @@ export default function AdminPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ─── TAB 6: PLATFORM ORDERS ────────────────────────────────────────── */}
+      {activeTab === "orders" && (
+        <div className="space-y-6 text-left">
+          {/* Search & Filter */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex flex-col md:flex-row gap-4">
+            <div className="flex-grow">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                Search Orders
+              </label>
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
+                <input
+                  type="text"
+                  placeholder="Search by Order ID, Store Name, Supplier, or Customer..."
+                  value={orderSearch}
+                  onChange={(e) => setOrderSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/50 transition text-xs"
+                />
+              </div>
+            </div>
+            <div className="w-full md:w-48">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
+                Order Type
+              </label>
+              <select
+                value={orderTypeFilter}
+                onChange={(e) => setOrderTypeFilter(e.target.value)}
+                className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-white focus:outline-none focus:border-blue-500/50 transition text-xs"
+              >
+                <option className="text-black" value="all">All Types</option>
+                <option className="text-black" value="b2b">Wholesale (B2B)</option>
+                <option className="text-black" value="b2c">Patient (B2C)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Orders Grid */}
+          {ordersLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500" />
+            </div>
+          ) : platformOrders.length === 0 ? (
+            <div className="text-center py-16 bg-white/5 border border-white/5 rounded-2xl">
+              <p className="text-gray-400">No platform orders found.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {platformOrders
+                .filter((o) => {
+                  const query = orderSearch.toLowerCase();
+                  const matchesSearch =
+                    o._id?.toLowerCase().includes(query) ||
+                    o.store?.name?.toLowerCase().includes(query) ||
+                    o.seller?.toLowerCase().includes(query) ||
+                    o.customer?.name?.toLowerCase().includes(query) ||
+                    o.customer?.email?.toLowerCase().includes(query);
+                  const matchesType =
+                    orderTypeFilter === "all" ? true : o.orderType === orderTypeFilter;
+                  return matchesSearch && matchesType;
+                })
+                .map((order) => {
+                  const statusColors: Record<string, string> = {
+                    pending: "bg-amber-500/10 border-amber-500/30 text-amber-400",
+                    processed: "bg-blue-500/10 border-blue-500/30 text-blue-400",
+                    completed: "bg-emerald-500/10 border-emerald-500/30 text-emerald-400",
+                    cancelled: "bg-rose-500/10 border-rose-500/30 text-rose-400",
+                  };
+                  return (
+                    <div
+                      key={order._id}
+                      className="bg-white/5 border border-white/10 hover:border-white/20 rounded-2xl p-5 transition duration-300 flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <span className="text-[10px] text-gray-500 font-mono">ID: {order._id}</span>
+                            <h4 className="text-xs text-gray-400 font-semibold mt-0.5">
+                              {new Date(order.orderDate || order.createdAt).toLocaleDateString()}
+                            </h4>
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold border ${
+                              statusColors[order.status] || "bg-gray-500/10 border-gray-500/30 text-gray-400"
+                            }`}
+                          >
+                            {order.status?.toUpperCase()}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1.5 text-xs text-gray-300 bg-white/5 p-3 rounded-xl border border-white/5 mb-3">
+                          <p>
+                            <span className="text-gray-400">Store:</span>{" "}
+                            <strong className="text-white">{order.store?.name || "Unknown Store"}</strong>
+                          </p>
+                          {order.orderType === "b2c" ? (
+                            <p>
+                              <span className="text-blue-400">Patient:</span>{" "}
+                              <strong className="text-white">{order.customer?.name || "Guest"}</strong>
+                            </p>
+                          ) : (
+                            <p>
+                              <span className="text-indigo-400">Supplier:</span>{" "}
+                              <strong className="text-white">{order.seller || "Supplier"}</strong>
+                            </p>
+                          )}
+                          <p>
+                            <span className="text-gray-400">Items Count:</span>{" "}
+                            <strong className="text-white">{order.totalItems} lines</strong>
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setShowOrderDialog(true);
+                          }}
+                          className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <FiInfo size={12} /> View Details
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Platform Order Details Dialog */}
+      {selectedOrder && (
+        <CustomDialog
+          open={showOrderDialog}
+          onClose={() => setShowOrderDialog(false)}
+          title={selectedOrder.orderType === "b2b" ? "Platform B2B Wholesale Invoice" : "Platform B2C Patient Order"}
+        >
+          <div className="space-y-5 text-left text-xs">
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Order Identifier</p>
+              <p className="text-sm font-mono text-white select-all">{selectedOrder._id}</p>
+              <p className="text-[10px] text-gray-400 mt-1">
+                Placed on {new Date(selectedOrder.orderDate || selectedOrder.createdAt).toLocaleString()}
+              </p>
+            </div>
+
+            <div className="bg-white/5 p-3.5 rounded-xl border border-white/5 space-y-1.5">
+              <p className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider mb-1">Store Details</p>
+              <p className="text-white"><span className="text-gray-400">Name:</span> {selectedOrder.store?.name || "Unknown Store"}</p>
+              <p className="text-white"><span className="text-gray-400">Contact:</span> {selectedOrder.store?.contact || "N/A"}</p>
+            </div>
+
+            {selectedOrder.orderType === "b2c" && selectedOrder.customer ? (
+              <div className="bg-white/5 p-3.5 rounded-xl border border-white/5 space-y-1.5">
+                <p className="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-1">Patient Details</p>
+                <p className="text-white"><span className="text-gray-400">Name:</span> {selectedOrder.customer.name}</p>
+                <p className="text-white"><span className="text-gray-400">Email:</span> {selectedOrder.customer.email}</p>
+              </div>
+            ) : (
+              <div className="bg-white/5 p-3.5 rounded-xl border border-white/5 space-y-1.5">
+                <p className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider mb-1">Wholesale Supplier</p>
+                <p className="text-white font-bold">{selectedOrder.seller || "Supplier"}</p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-white/10 pb-1">
+                Items Invoiced ({selectedOrder.totalItems})
+              </p>
+              {selectedOrder.medicines?.map((item: any, idx: number) => (
+                <div key={idx} className="bg-white/5 p-2.5 rounded-xl border border-white/5 flex justify-between items-center text-xs">
+                  <div>
+                    <p className="font-semibold text-white">{item.medicine_id?.name || "Unknown Medicine"}</p>
+                    <p className="text-[9px] text-gray-400 font-mono">Expiry: {item.expiry ? new Date(item.expiry).toLocaleDateString() : "N/A"}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white">{item.quantity} units</p>
+                    <p className="text-[10px] text-cyan-400 font-mono font-bold">₹{item.price?.toFixed(2) || "0.00"}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Remarks</p>
+              <p className="text-xs text-gray-300 bg-white/5 border border-white/5 p-2.5 rounded-xl italic">
+                {selectedOrder.remarks || "No remarks provided."}
+              </p>
+            </div>
+
+            <div className="flex justify-between items-center border-t border-white/10 pt-3">
+              <div>
+                <p className="text-[10px] text-gray-400 uppercase">Status</p>
+                <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/5 border text-white">
+                  {selectedOrder.status?.toUpperCase()}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowOrderDialog(false)}
+                className="px-5 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl transition duration-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </CustomDialog>
       )}
 
       {/* ─── TAB 5: AUDIT LOG ──────────────────────────────────────────────── */}

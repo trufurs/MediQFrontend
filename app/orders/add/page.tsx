@@ -115,6 +115,7 @@ const AddOrderPage = () => {
         totalItems: newOrder.items.length,
         orderDate: new Date().toISOString().split("T")[0],
         remarks: newOrder.remarks,
+        status: "completed",
       };
 
       await addOrder(orderPayload);
@@ -227,7 +228,7 @@ const AddOrderPage = () => {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Medicine Autocomplete Search */}
                     <div className="relative">
                       <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">

@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import axios from "axios";
 import SearchInput from "@/components/SearchInput";
 import SearchOptions from "@/components/SearchOptions";
 import SearchResults from "@/components/SearchResults";
 import { useToast } from "@/context/ToastContext";
+import CustomDialog from "@/components/CustomDialog";
+import { FiCamera, FiFileText, FiCpu, FiCheck } from "react-icons/fi";
 
 export default function SearchMedicine() {
   const [query, setQuery] = useState("");
@@ -16,8 +19,52 @@ export default function SearchMedicine() {
   const [errorMessage, setErrorMessage] = useState("");
   const [skip, setSkip] = useState(0);
   const { showToast } = useToast();
+  const router = useRouter();
+
+  // AI Scanner Simulator States
+  const [openScanner, setOpenScanner] = useState(false);
+  const [scanState, setScanState] = useState<"idle" | "scanning" | "done">("idle");
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [detectedMeds, setDetectedMeds] = useState<string>("");
+
+  // Route guard: only allow customer and guest (temp) users
+  useEffect(() => {
+    const ud = localStorage.getItem("user_data");
+    if (ud) {
+      try {
+        const parsed = JSON.parse(ud);
+        if (parsed.role === "admin" || parsed.role === "store-owner") {
+          showToast("Medicine search is for customers only.", "warning");
+          router.replace("/");
+        }
+      } catch (err) {
+        console.error("Error parsing user_data in route guard:", err);
+      }
+    }
+  }, [router, showToast]);
   
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND;
+
+  const handleSelectTemplate = (medName: string) => {
+    setSelectedTemplate(medName);
+    setScanState("scanning");
+    
+    // Simulate OCR scanning
+    setTimeout(() => {
+      setDetectedMeds(medName);
+      setScanState("done");
+      showToast("OCR analysis complete! Medicine recognized.", "success");
+    }, 2200);
+  };
+
+  const handleApplyScan = () => {
+    setQuery(detectedMeds);
+    setSkip(0);
+    setOpenScanner(false);
+    setScanState("idle");
+    setSelectedTemplate(null);
+    executeSearch(detectedMeds, true);
+  };
 
   // Auto-trigger search from query parameters (e.g. from customer portal)
   useEffect(() => {
@@ -154,17 +201,25 @@ export default function SearchMedicine() {
                 <p className="text-gray-400 text-[11px]">Compare chemical formulas, precautions, and FDA logs.</p>
               </div>
             </div>
-            <button
-              onClick={() => {
-                setQuery("");
-                setFiltered([]);
-                setMovedUp(false);
-                setErrorMessage("");
-              }}
-              className="px-3.5 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold rounded-xl text-gray-400 hover:text-white transition duration-200"
-            >
-              Clear Search
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setOpenScanner(true)}
+                className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-xs font-bold rounded-xl text-white shadow-md transition duration-200 cursor-pointer"
+              >
+                Scan Rx 📷
+              </button>
+              <button
+                onClick={() => {
+                  setQuery("");
+                  setFiltered([]);
+                  setMovedUp(false);
+                  setErrorMessage("");
+                }}
+                className="px-3.5 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold rounded-xl text-gray-400 hover:text-white transition duration-200"
+              >
+                Clear Search
+              </button>
+            </div>
           </>
         ) : (
           <>
@@ -175,6 +230,12 @@ export default function SearchMedicine() {
             <p className="text-gray-400 text-sm mt-4 leading-relaxed">
               Locate medications, review generic chemical formulas, clinical precautions, active ingredients, and OpenFDA information records.
             </p>
+            <button
+              onClick={() => setOpenScanner(true)}
+              className="mt-6 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold rounded-xl shadow-lg hover:shadow-cyan-500/20 transition duration-250 transform active:scale-95 text-xs text-center cursor-pointer"
+            >
+              Scan Prescription with AI 📷
+            </button>
           </>
         )}
       </div>
@@ -224,6 +285,110 @@ export default function SearchMedicine() {
           )}
         </div>
       )}
+
+      {/* AI Scanner Dialog */}
+      {openScanner && (
+        <CustomDialog
+          open={openScanner}
+          onClose={() => {
+            if (scanState !== "scanning") {
+              setOpenScanner(false);
+              setScanState("idle");
+              setSelectedTemplate(null);
+            }
+          }}
+          title="AI Prescription OCR Scanner"
+        >
+          <div className="space-y-6 text-left relative overflow-hidden">
+            {scanState === "idle" && (
+              <div className="space-y-4">
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Our Optical Character Recognition (OCR) model processes doctor handwriting templates. Select a prescription case sheet below to run the extraction engine:
+                </p>
+                
+                <div className="grid grid-cols-1 gap-3">
+                  {[
+                    { title: "Amoxicillin Formula", detail: "Dr. Roberts - 250mg capsule, twice daily.", med: "Amoxicillin" },
+                    { title: "Metformin Tablet", detail: "Dr. Gupta - 500mg tablet for diabetes care.", med: "Metformin" },
+                    { title: "Paracetamol Case", detail: "Dr. Chen - 650mg tablet for high fever.", med: "Paracetamol" },
+                  ].map((tpl) => (
+                    <div
+                      key={tpl.title}
+                      onClick={() => handleSelectTemplate(tpl.med)}
+                      className="p-4 bg-white/5 hover:bg-emerald-500/5 border border-white/10 hover:border-emerald-500/30 rounded-xl transition duration-200 cursor-pointer text-left"
+                    >
+                      <div className="flex justify-between items-center">
+                        <h4 className="text-xs font-extrabold uppercase tracking-widest text-emerald-400">{tpl.title}</h4>
+                        <span className="text-[10px] text-gray-500 font-bold font-mono">Rx Sheet</span>
+                      </div>
+                      <p className="text-xs text-gray-300 mt-2 font-medium">{tpl.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {scanState === "scanning" && (
+              <div className="flex flex-col items-center justify-center py-12 text-center space-y-6">
+                <div className="relative w-36 h-36 border border-emerald-500/20 rounded-2xl flex items-center justify-center overflow-hidden bg-emerald-500/5 shadow-[0_0_40px_rgba(16,185,129,0.1)]">
+                  {/* Sweep Scanning Laser */}
+                  <div className="absolute inset-x-0 w-full h-0.5 bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)] animate-scan-sweep pointer-events-none" />
+                  
+                  <FiCpu className="text-5xl text-emerald-450 animate-spin" style={{ animationDuration: "3s" }} />
+                </div>
+                
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold text-white">Running Handwriting Analysis</h4>
+                  <p className="text-xs text-emerald-400 font-extrabold tracking-wider uppercase animate-pulse">
+                    Decoding: {selectedTemplate}...
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {scanState === "done" && (
+              <div className="space-y-5">
+                <div className="p-5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center gap-4 animate-scale-up">
+                  <div className="p-3 bg-emerald-500/20 rounded-full text-emerald-400 text-2xl flex-shrink-0">
+                    <FiCheck />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-450">Prescription Decoded</h4>
+                    <h3 className="text-lg font-black text-white mt-0.5">{detectedMeds}</h3>
+                  </div>
+                </div>
+                
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setScanState("idle")}
+                    className="flex-1 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    Rescan
+                  </button>
+                  <button
+                    onClick={handleApplyScan}
+                    className="flex-grow py-3 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold rounded-xl text-xs shadow-lg transition duration-200 transform active:scale-95 text-center cursor-pointer"
+                  >
+                    Auto-Fill and Search
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </CustomDialog>
+      )}
+
+      <style>{`
+        @keyframes scanSweep {
+          0% { top: 0%; }
+          50% { top: 100%; }
+          100% { top: 0%; }
+        }
+        .animate-scan-sweep {
+          position: absolute;
+          animation: scanSweep 2s infinite linear;
+        }
+      `}</style>
     </div>
   );
 }

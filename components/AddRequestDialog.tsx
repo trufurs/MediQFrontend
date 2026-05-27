@@ -3,7 +3,8 @@ import dynamic from 'next/dynamic';
 import React, { useState, useEffect } from "react";
 import { useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
-import { FiX, FiCheck, FiMapPin, FiMap, FiBriefcase, FiHash, FiPhone } from "react-icons/fi";
+import { FiX, FiCheck, FiMapPin, FiMap, FiBriefcase, FiHash, FiPhone, FiAlertCircle } from "react-icons/fi";
+import { useToast } from "@/context/ToastContext";
 
 import "leaflet/dist/leaflet.css";
 import { addRequest } from "@/utils/request";
@@ -75,6 +76,7 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
   onClose,
   onRequestAdded,
 }) => {
+  const { showToast } = useToast();
   const [newRequest, setNewRequest] = useState<NewRequest>({
     owner: "",
     name: "",
@@ -92,6 +94,7 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
   });
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   // Auto-fill Registrant Owner ID from localStorage user session
   useEffect(() => {
@@ -152,36 +155,46 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
         reverseGeocode(latitude, longitude);
       }, (error) => {
         console.error("Error getting location:", error);
-        alert("Could not access your location. Please check browser location permissions.");
+        showToast("Could not access your location. Check browser permissions.", "warning");
       });
     } else {
-      alert("Geolocation is not supported by your browser.");
+      showToast("Geolocation is not supported by your browser.", "error");
     }
   };
 
   const handleAddRequest = async () => {
-    if (!newRequest.name.trim() || !newRequest.licenseNumber.trim() || !newRequest.contact.trim()) {
-      alert("Please fill in all required pharmacy registry fields.");
-      return;
+    const errors: Record<string, string> = {};
+
+    if (!newRequest.name.trim()) errors.name = "Pharmacy name is required.";
+    if (!newRequest.licenseNumber.trim()) errors.licenseNumber = "License number is required.";
+    if (!newRequest.contact.trim()) {
+      errors.contact = "Contact number is required.";
+    } else if (!/^[\d\s\-\+]{10,15}$/.test(newRequest.contact.replace(/\s/g, ''))) {
+      errors.contact = "Contact must be 10-15 digits.";
     }
-    if (!newRequest.address.street.trim() || !newRequest.address.city.trim()) {
-      alert("Please specify the street address and city.");
-      return;
-    }
+    if (!newRequest.address.street.trim()) errors.street = "Street address is required.";
+    if (!newRequest.address.city.trim()) errors.city = "City is required.";
     if (newRequest.address.latitude === 0 && newRequest.address.longitude === 0) {
-      alert("Please select physical store coordinates on the map.");
+      errors.coords = "Please select store coordinates on the map.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      showToast(Object.values(errors)[0], "warning");
       return;
     }
 
+    setFieldErrors({});
     setSubmitting(true);
     try {
       const token = localStorage.getItem("auth_token");
       const data = await addRequest(token!, newRequest);
       onRequestAdded(data);
+      showToast("Store registration request submitted!", "success");
       onClose();
     } catch (err) {
       console.error("Error adding request:", err);
-      alert("Failed to submit store registration request. Try again.");
+      showToast("Failed to submit registration request. Please try again.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -238,9 +251,9 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 sm:p-4 p-0">
       {/* Modal Container */}
-      <div className="bg-zinc-950 border border-white/10 rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col relative animate-scale-up">
+      <div className="bg-zinc-950 border border-white/10 sm:rounded-3xl rounded-none shadow-2xl w-full h-full sm:h-auto max-w-lg sm:max-h-[90vh] overflow-hidden flex flex-col relative animate-scale-up">
         {/* Glow corner */}
         <div className="absolute -right-20 -top-20 w-48 h-48 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
         
@@ -267,7 +280,7 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
               <FiBriefcase /> Pharmacy Credentials
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1.5">
                   Registrant Owner ID
@@ -291,10 +304,20 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
                   type="text"
                   placeholder="e.g. CareMax Drugstore"
                   value={newRequest.name}
-                  onChange={(e) => setNewRequest({ ...newRequest, name: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition text-xs"
+                  onChange={(e) => {
+                    setNewRequest({ ...newRequest, name: e.target.value });
+                    if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: "" }));
+                  }}
+                  className={`w-full px-4 py-2.5 bg-white/5 border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition text-xs ${
+                    fieldErrors.name ? "border-rose-500/60 bg-rose-500/5" : "border-white/10"
+                  }`}
                   required
                 />
+                {fieldErrors.name && (
+                  <p className="text-rose-400 text-[10px] mt-1 flex items-center gap-1">
+                    <FiAlertCircle size={9} /> {fieldErrors.name}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -305,10 +328,20 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
                   type="text"
                   placeholder="e.g. DL-293849"
                   value={newRequest.licenseNumber}
-                  onChange={(e) => setNewRequest({ ...newRequest, licenseNumber: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition text-xs font-mono"
+                  onChange={(e) => {
+                    setNewRequest({ ...newRequest, licenseNumber: e.target.value });
+                    if (fieldErrors.licenseNumber) setFieldErrors((prev) => ({ ...prev, licenseNumber: "" }));
+                  }}
+                  className={`w-full px-4 py-2.5 bg-white/5 border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition text-xs font-mono ${
+                    fieldErrors.licenseNumber ? "border-rose-500/60 bg-rose-500/5" : "border-white/10"
+                  }`}
                   required
                 />
+                {fieldErrors.licenseNumber && (
+                  <p className="text-rose-400 text-[10px] mt-1 flex items-center gap-1">
+                    <FiAlertCircle size={9} /> {fieldErrors.licenseNumber}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -320,12 +353,22 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
                     type="text"
                     placeholder="e.g. +91 98765 43210"
                     value={newRequest.contact}
-                    onChange={(e) => setNewRequest({ ...newRequest, contact: e.target.value })}
-                    className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition text-xs"
+                    onChange={(e) => {
+                      setNewRequest({ ...newRequest, contact: e.target.value });
+                      if (fieldErrors.contact) setFieldErrors((prev) => ({ ...prev, contact: "" }));
+                    }}
+                    className={`w-full pl-9 pr-4 py-2.5 bg-white/5 border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition text-xs ${
+                      fieldErrors.contact ? "border-rose-500/60 bg-rose-500/5" : "border-white/10"
+                    }`}
                     required
                   />
                   <FiPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
                 </div>
+                {fieldErrors.contact && (
+                  <p className="text-rose-400 text-[10px] mt-1 flex items-center gap-1">
+                    <FiAlertCircle size={9} /> {fieldErrors.contact}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -345,13 +388,23 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
                   type="text"
                   placeholder="e.g. 102 medical road, sector-5"
                   value={newRequest.address.street}
-                  onChange={(e) => setNewRequest({
-                    ...newRequest,
-                    address: { ...newRequest.address, street: e.target.value },
-                  })}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition text-xs"
+                  onChange={(e) => {
+                    setNewRequest({
+                      ...newRequest,
+                      address: { ...newRequest.address, street: e.target.value },
+                    });
+                    if (fieldErrors.street) setFieldErrors((prev) => ({ ...prev, street: "" }));
+                  }}
+                  className={`w-full px-4 py-2.5 bg-white/5 border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition text-xs ${
+                    fieldErrors.street ? "border-rose-500/60 bg-rose-500/5" : "border-white/10"
+                  }`}
                   required
                 />
+                {fieldErrors.street && (
+                  <p className="text-rose-400 text-[10px] mt-1 flex items-center gap-1">
+                    <FiAlertCircle size={9} /> {fieldErrors.street}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -362,13 +415,23 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
                   type="text"
                   placeholder="e.g. Jaipur"
                   value={newRequest.address.city}
-                  onChange={(e) => setNewRequest({
-                    ...newRequest,
-                    address: { ...newRequest.address, city: e.target.value },
-                  })}
-                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition text-xs"
+                  onChange={(e) => {
+                    setNewRequest({
+                      ...newRequest,
+                      address: { ...newRequest.address, city: e.target.value },
+                    });
+                    if (fieldErrors.city) setFieldErrors((prev) => ({ ...prev, city: "" }));
+                  }}
+                  className={`w-full px-4 py-2.5 bg-white/5 border rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500/50 transition text-xs ${
+                    fieldErrors.city ? "border-rose-500/60 bg-rose-500/5" : "border-white/10"
+                  }`}
                   required
                 />
+                {fieldErrors.city && (
+                  <p className="text-rose-400 text-[10px] mt-1 flex items-center gap-1">
+                    <FiAlertCircle size={9} /> {fieldErrors.city}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -442,6 +505,11 @@ const AddRequestDialog: React.FC<AddRequestDialogProps> = ({
                 )}
               </div>
             </div>
+            {fieldErrors.coords && (
+              <p className="text-rose-400 text-[10px] flex items-center gap-1">
+                <FiAlertCircle size={9} /> {fieldErrors.coords}
+              </p>
+            )}
 
             <div className="w-full h-60 rounded-2xl overflow-hidden border border-white/10 relative z-20">
               {userLocation ? (

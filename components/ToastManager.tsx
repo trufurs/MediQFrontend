@@ -1,26 +1,26 @@
 /* eslint-disable react/display-name */
 "use client";
 import React, { useState, useCallback, forwardRef, useImperativeHandle } from "react";
-import Toast from "./Toast";
+import Toast, { ToastType } from "./Toast";
 
 interface ToastMessage {
   id: string;
   message: string;
-  type: "success" | "error";
+  type: ToastType;
 }
 
 const ToastManager = forwardRef((_, ref) => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // Add a new toast
-  const addToast = useCallback((message: string, type: "success" | "error") => {
-    const id = Date.now().toString(); // Unique ID for each toast
-    setToasts((prevToasts) => [ { id, message, type } , ...prevToasts ]); // Add new toast to the top of the list
+  const addToast = useCallback((message: string, type: ToastType) => {
+    const id = Date.now().toString();
+    setToasts((prevToasts) => [{ id, message, type }, ...prevToasts]);
 
-    // Automatically remove the toast after 2 seconds
+    // Automatically remove the toast after 3.8 seconds (slightly after animation finishes)
     setTimeout(() => {
       setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id));
-    }, 2000);
+    }, 3800);
   }, []);
 
   // Expose the `addToast` method via the ref
@@ -34,14 +34,16 @@ const ToastManager = forwardRef((_, ref) => {
   };
 
   return (
-    <div className="fixed top-5 right-5 md:right-10 flex flex-col gap-4 z-50">
+    <div className="fixed top-5 right-5 md:right-6 flex flex-col gap-3 z-[9999] pointer-events-none">
       {toasts.map((toast) => (
-        <Toast
-          key={toast.id}
-          message={toast.message}
-          type={toast.type}
-          onClose={() => removeToast(toast.id)}
-        />
+        <div key={toast.id} className="pointer-events-auto">
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => removeToast(toast.id)}
+            duration={3500}
+          />
+        </div>
       ))}
     </div>
   );

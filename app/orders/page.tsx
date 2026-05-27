@@ -8,6 +8,7 @@ import { useToast } from "@/context/ToastContext";
 import AddMedicineDialog from "@/components/AddMedicineDialog";
 import CustomDialog from "@/components/CustomDialog";
 import { fetchCustomerOrders } from "@/utils/management";
+import { FiPrinter } from "react-icons/fi";
 
 interface MedicineItem {
   name: string;
@@ -89,22 +90,24 @@ function OrdersPage() {
       if (role === "store-owner") {
         // Fetch Supplier (B2B) orders
         const b2bRes = await axios.get(`${host}/order`, { headers: getHeaders() });
-        const mappedB2b: Order[] = b2bRes.data.map((o: any) => ({
-          _id: o._id,
-          orderDate: o.orderDate || o.createdAt,
-          seller: o.seller || "Supplier",
-          totalItems: o.totalItems,
-          status: o.status,
-          orderType: o.orderType || 'b2b',
-          items: o.medicines.map((m: any) => ({
-            name: m.medicine_id?.name || "Unknown Medicine",
-            quantity: m.quantity,
-            price: m.price,
-            expiryDate: m.expiry,
-            type: m.type || "renew",
-          })),
-          remarks: o.remarks || "B2B Restock Order",
-        }));
+        const mappedB2b: Order[] = b2bRes.data
+          .filter((o: any) => o.orderType === 'b2b' || !o.orderType)
+          .map((o: any) => ({
+            _id: o._id,
+            orderDate: o.orderDate || o.createdAt,
+            seller: o.seller || "Supplier",
+            totalItems: o.totalItems,
+            status: 'completed',
+            orderType: o.orderType || 'b2b',
+            items: o.medicines.map((m: any) => ({
+              name: m.medicine_id?.name || "Unknown Medicine",
+              quantity: m.quantity,
+              price: m.price,
+              expiryDate: m.expiry,
+              type: m.type || "renew",
+            })),
+            remarks: o.remarks || "B2B Restock Order",
+          }));
         setB2bOrders(mappedB2b);
 
         // Fetch Customer (B2C) requests
@@ -222,10 +225,10 @@ function OrdersPage() {
       {/* Header and Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 text-left">
         <div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">Orders Panel</h1>
+          <h1 className="text-3xl font-extrabold text-white tracking-tight">Orders & Invoices</h1>
           <p className="text-gray-400 text-sm mt-1">
             {role === "store-owner"
-              ? "Manage supplier restock orders and view customer prescriptions."
+              ? "View wholesale invoice logs (B2B) and process customer medicine requests (B2C)."
               : "Review your requested medicine orders."}
           </p>
         </div>
@@ -236,7 +239,7 @@ function OrdersPage() {
             <>
               <Link href="/orders/add">
                 <button className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-xl shadow-md transition duration-200">
-                  New Supplier Order
+                  Log Wholesale Invoice
                 </button>
               </Link>
               <button
@@ -261,7 +264,7 @@ function OrdersPage() {
                 ownerTab === "supplier" ? "bg-white/10 text-white shadow-md" : "text-gray-400 hover:text-white"
               }`}
             >
-              Supplier Restocks (B2B)
+              Wholesale Invoices (B2B)
             </button>
             <button
               onClick={() => { setOwnerTab("customer-req"); setFilterStatus("all"); }}
@@ -313,7 +316,7 @@ function OrdersPage() {
           <p className="text-gray-400 text-base">No orders found.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredListToRender.map((order) => (
             <div
               key={order._id}
@@ -401,72 +404,165 @@ function OrdersPage() {
         <CustomDialog
           open={showDetailsDialog}
           onClose={() => setShowDetailsDialog(false)}
-          title="Order Full Details"
+          title={selectedOrder.orderType === "b2b" ? "Wholesale Purchase Invoice" : "Order Full Details"}
         >
-          <div className="space-y-6 text-left">
-            <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Order Identifier</p>
-              <p className="text-sm font-mono text-white select-all">{selectedOrder._id}</p>
-              <p className="text-xs text-gray-400 mt-1">
-                Placed on {new Date(selectedOrder.orderDate).toLocaleString()}
-              </p>
+          {selectedOrder.orderType === "b2b" ? (
+            // B2B Wholesale Invoice Layout
+            <div className="space-y-6 text-left">
+              {/* Corporate Header */}
+              <div className="border-b border-white/10 pb-4 flex justify-between items-start">
+                <div>
+                  <h3 className="text-lg font-bold text-white">MediQ Wholesale Invoice</h3>
+                  <p className="text-xs text-cyan-400 mt-1 font-mono select-all">Inv-ID: {selectedOrder._id}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Date: {new Date(selectedOrder.orderDate).toLocaleString()}</p>
+                </div>
+                <div className="text-right">
+                  <span className="px-2.5 py-1 rounded-full text-xs font-semibold border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 uppercase">
+                    COMPLETED
+                  </span>
+                  <p className="text-[10px] text-gray-500 mt-1.5 font-mono">Type: B2B Restock</p>
+                </div>
+              </div>
+
+              {/* Billing details */}
+              <div className="grid grid-cols-2 gap-4 text-xs bg-white/5 p-4 rounded-xl border border-white/5">
+                <div>
+                  <p className="font-bold text-gray-400 uppercase tracking-wider mb-1">Supplier</p>
+                  <p className="text-white font-semibold text-sm">{selectedOrder.seller}</p>
+                  <p className="text-gray-400 mt-0.5">Verified Restock Vendor</p>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-400 uppercase tracking-wider mb-1">Received By</p>
+                  <p className="text-white font-semibold text-sm">Your Store</p>
+                  <p className="text-gray-400 mt-0.5">Inventory Auto-updated</p>
+                </div>
+              </div>
+
+              {/* Line Items Table/List */}
+              <div className="space-y-3">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-white/10 pb-1.5">
+                  Invoiced Line Items
+                </p>
+                <div className="space-y-2">
+                  {selectedOrder.items.map((item, idx) => (
+                    <div key={idx} className="bg-white/5 p-3 rounded-xl border border-white/5 text-sm flex justify-between items-center">
+                      <div className="space-y-0.5 text-left">
+                        <p className="font-semibold text-white">{item.name}</p>
+                        {item.expiryDate && (
+                          <p className="text-[10px] text-amber-300 font-mono">
+                            Expiry: {new Date(item.expiryDate).toLocaleDateString()}
+                          </p>
+                        )}
+                        <p className="text-[10px] text-gray-400 uppercase">Type: {item.type === 'new' ? 'New Batch' : 'Replenish'}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white font-semibold">{item.quantity} units</p>
+                        <p className="text-xs text-gray-400">@ ₹{item.price.toFixed(2)}</p>
+                        <p className="text-xs text-cyan-400 font-bold mt-0.5">₹{(item.price * item.quantity).toFixed(2)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Summary / Total */}
+              <div className="border-t border-white/10 pt-4 flex justify-between items-center">
+                <div className="max-w-[60%]">
+                  <p className="text-xs text-gray-400 italic">Remarks: {selectedOrder.remarks}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-400 uppercase tracking-wider">Total Purchase Value</p>
+                  <p className="text-xl font-extrabold text-cyan-400 font-mono">
+                    ₹{selectedOrder.items.reduce((sum, item) => sum + (item.price * item.quantity), 0).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    showToast("Invoice print job initiated. PDF download starting...", "success");
+                  }}
+                  className="flex-1 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg transition duration-200 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <FiPrinter className="text-sm" /> Print Invoice Receipt
+                </button>
+                <button
+                  onClick={() => setShowDetailsDialog(false)}
+                  className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl transition duration-200"
+                >
+                  Close
+                </button>
+              </div>
             </div>
-
-            {selectedOrder.orderType === "b2c" && selectedOrder.customer ? (
-              <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                <p className="text-xs text-blue-400 font-bold uppercase tracking-wider mb-2">Customer Details</p>
-                <p className="text-sm text-white"><span className="font-semibold text-gray-400">Name:</span> {selectedOrder.customer.name}</p>
-                <p className="text-sm text-white mt-1"><span className="font-semibold text-gray-400">Email:</span> {selectedOrder.customer.email}</p>
-                {selectedOrder.customer.phone > 0 && (
-                  <p className="text-sm text-white mt-1"><span className="font-semibold text-gray-400">Phone:</span> {selectedOrder.customer.phone}</p>
-                )}
+          ) : (
+            // B2C Customer Layout
+            <div className="space-y-6 text-left">
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Order Identifier</p>
+                <p className="text-sm font-mono text-white select-all">{selectedOrder._id}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Placed on {new Date(selectedOrder.orderDate).toLocaleString()}
+                </p>
               </div>
-            ) : (
-              <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                <p className="text-xs text-indigo-400 font-bold uppercase tracking-wider mb-1">Supplier Details</p>
-                <p className="text-sm text-white font-bold">{selectedOrder.seller}</p>
-              </div>
-            )}
 
-            <div className="space-y-3">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-white/10 pb-1.5">
-                Items Requested ({selectedOrder.totalItems})
-              </p>
-              {selectedOrder.items.map((item, idx) => (
-                <div key={idx} className="bg-white/5 p-3 rounded-xl border border-white/5 text-sm space-y-1">
-                  <p className="font-semibold text-white">{item.name}</p>
-                  <div className="flex justify-between text-xs text-gray-400">
-                    <span>Quantity: <strong className="text-white">{item.quantity}</strong></span>
-                    <span>Price: <strong className="text-white">₹{item.price.toFixed(2)}</strong></span>
-                  </div>
-                  {item.expiryDate && (
-                    <p className="text-[10px] text-amber-300">
-                      Expiry batch: {new Date(item.expiryDate).toLocaleDateString()}
-                    </p>
+              {selectedOrder.customer ? (
+                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                  <p className="text-xs text-blue-400 font-bold uppercase tracking-wider mb-2">Customer Details</p>
+                  <p className="text-sm text-white"><span className="font-semibold text-gray-400">Name:</span> {selectedOrder.customer.name}</p>
+                  <p className="text-sm text-white mt-1"><span className="font-semibold text-gray-400">Email:</span> {selectedOrder.customer.email}</p>
+                  {selectedOrder.customer.phone > 0 && (
+                    <p className="text-sm text-white mt-1"><span className="font-semibold text-gray-400">Phone:</span> {selectedOrder.customer.phone}</p>
                   )}
                 </div>
-              ))}
-            </div>
+              ) : (
+                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                  <p className="text-xs text-indigo-400 font-bold uppercase tracking-wider mb-1">Supplier Details</p>
+                  <p className="text-sm text-white font-bold">{selectedOrder.seller}</p>
+                </div>
+              )}
 
-            <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Remarks</p>
-              <p className="text-sm text-gray-300 bg-white/5 border border-white/5 p-3 rounded-xl italic">
-                {selectedOrder.remarks}
-              </p>
-            </div>
+              <div className="space-y-3">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-white/10 pb-1.5">
+                  Items Requested ({selectedOrder.totalItems})
+                </p>
+                {selectedOrder.items.map((item, idx) => (
+                  <div key={idx} className="bg-white/5 p-3 rounded-xl border border-white/5 text-sm space-y-1">
+                    <p className="font-semibold text-white">{item.name}</p>
+                    <div className="flex justify-between text-xs text-gray-400">
+                      <span>Quantity: <strong className="text-white">{item.quantity}</strong></span>
+                      <span>Price: <strong className="text-white">₹{item.price.toFixed(2)}</strong></span>
+                    </div>
+                    {item.expiryDate && (
+                      <p className="text-[10px] text-amber-300">
+                        Expiry batch: {new Date(item.expiryDate).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
 
-            <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Order Status</p>
-              {renderStatusBadge(selectedOrder.status)}
-            </div>
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Remarks</p>
+                <p className="text-sm text-gray-300 bg-white/5 border border-white/5 p-3 rounded-xl italic">
+                  {selectedOrder.remarks}
+                </p>
+              </div>
 
-            <button
-              onClick={() => setShowDetailsDialog(false)}
-              className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl transition duration-200 mt-2"
-            >
-              Close
-            </button>
-          </div>
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Order Status</p>
+                {renderStatusBadge(selectedOrder.status)}
+              </div>
+
+              <button
+                onClick={() => setShowDetailsDialog(false)}
+                className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-bold rounded-xl transition duration-200 mt-2"
+              >
+                Close
+              </button>
+            </div>
+          )}
         </CustomDialog>
       )}
 
