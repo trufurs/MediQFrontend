@@ -6,11 +6,61 @@ import { fetchRequests, updateRequestStatus, deleteRequest } from "@/utils/reque
 import CustomDialog from "@/components/CustomDialog";
 import dynamic from "next/dynamic";
 import { useToast } from "@/context/ToastContext";
-import { FiTrash2 } from "react-icons/fi";
+import { FiTrash2, FiMapPin } from "react-icons/fi";
+// @ts-ignore
+const L = typeof window !== "undefined" ? require("leaflet") : null;
+import "leaflet/dist/leaflet.css";
 
 const AddRequestDialog = dynamic(() => import("@/components/AddRequestDialog"), {
   ssr: false,
 });
+
+// Dynamically import map components
+const MapContainer = dynamic(
+  () => import("react-leaflet").then((mod) => mod.MapContainer),
+  { ssr: false }
+);
+const TileLayer = dynamic(
+  () => import("react-leaflet").then((mod) => mod.TileLayer),
+  { ssr: false }
+);
+const Marker = dynamic(
+  () => import("react-leaflet").then((mod) => mod.Marker),
+  { ssr: false }
+);
+const Popup = dynamic(
+  () => import("react-leaflet").then((mod) => mod.Popup),
+  { ssr: false }
+);
+
+// Store pin marker icon
+const storePinIcon =
+  typeof window !== "undefined"
+    ? L.divIcon({
+        className: "",
+        html: `
+          <div style="position:relative;width:32px;height:44px;display:flex;flex-direction:column;align-items:center;">
+            <div style="
+              width:28px;height:28px;border-radius:50%;
+              background:linear-gradient(135deg,#06b6d4,#3b82f6);
+              border:2.5px solid rgba(255,255,255,0.9);
+              box-shadow:0 0 14px rgba(6,182,212,0.8),0 2px 8px rgba(0,0,0,0.5);
+              display:flex;align-items:center;justify-content:center;
+              position:relative;z-index:1;
+            ">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+            </div>
+            <div style="width:2px;height:12px;background:#06b6d4;opacity:0.8;margin-top:1px;"></div>
+          </div>
+        `,
+        iconSize: [32, 44],
+        iconAnchor: [16, 44],
+        popupAnchor: [0, -46],
+      })
+    : null;
 
 interface Address {
   latitude: number;
@@ -184,7 +234,7 @@ function RequestsPage() {
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value);
-              showToast(`Filter applied: ${e.target.value}`, "success");
+              showToast(`Filter: ${e.target.value === "all" ? "Showing all" : e.target.value}`, "info");
             }}
             className="w-full px-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition duration-200 text-sm"
           >
@@ -216,7 +266,7 @@ function RequestsPage() {
           <p className="text-gray-400">No requests match the filter criteria.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredRequests.map((request) => (
             <div
               key={request._id}
@@ -325,6 +375,38 @@ function RequestsPage() {
               </div>
             </div>
 
+            {/* Mini Map */}
+            {selectedRequest.address.latitude && selectedRequest.address.longitude && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5">
+                  <FiMapPin size={11} /> Store Location
+                </p>
+                <div className="w-full h-44 rounded-xl overflow-hidden border border-white/10 shadow-lg relative z-20">
+                  <MapContainer
+                    center={[selectedRequest.address.latitude, selectedRequest.address.longitude]}
+                    zoom={14}
+                    style={{ height: "100%", width: "100%" }}
+                    zoomControl={false}
+                    dragging={false}
+                    scrollWheelZoom={false}
+                  >
+                    <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                    <Marker
+                      position={[selectedRequest.address.latitude, selectedRequest.address.longitude]}
+                      icon={storePinIcon || undefined}
+                    >
+                      <Popup>
+                        <div className="text-xs font-sans p-0.5">
+                          <strong>{selectedRequest.name}</strong>
+                          <p className="text-gray-600 mt-0.5">{selectedRequest.address.street}, {selectedRequest.address.city}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  </MapContainer>
+                </div>
+              </div>
+            )}
+
             <div className="text-xs text-gray-500 space-y-1 font-mono">
               <p>Created: {new Date(selectedRequest.createdAt).toLocaleString()}</p>
               <p>Updated: {new Date(selectedRequest.updatedAt).toLocaleString()}</p>
@@ -343,10 +425,10 @@ function RequestsPage() {
       {showAddDialog && (
         <AddRequestDialog
           onClose={() => setShowAddDialog(false)}
-          onRequestAdded={(newRequest) => {
-            setRequests((prev) => [newRequest, ...prev]);
+          onRequestAdded={() => {
             setShowAddDialog(false);
             showToast("New facility registration request added!", "success");
+            fetchRequestsHandler();
           }}
         />
       )}

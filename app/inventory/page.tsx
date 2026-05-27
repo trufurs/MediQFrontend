@@ -48,7 +48,7 @@ const InventoryPage = () => {
   const [searchResults, setSearchResults] = useState<Medicine[]>([]);
   const [reload, setReload] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [filter, setFilter] = useState<"all" | "expired" | "nearExpiry">("all");
+  const [filter, setFilter] = useState<"all" | "expired" | "nearExpiry" | "lowStock">("all");
 
   const { showToast } = useToast();
 
@@ -197,7 +197,8 @@ const InventoryPage = () => {
       const diffDays = Math.ceil(diffTime / (1000 * 3600 * 24));
       return diffDays <= 30 && expiryDate > now;
     }).length;
-    return { total, expired, near };
+    const lowStock = inventory.filter((item) => item.quantity < 15).length;
+    return { total, expired, near, lowStock };
   }, [inventory]);
 
   const filteredInventory = React.useMemo(() => {
@@ -213,6 +214,8 @@ const InventoryPage = () => {
         const diffDays = Math.ceil(diffTime / (1000 * 3600 * 24));
         return diffDays <= 30 && expiryDate > now;
       });
+    } else if (filter === "lowStock") {
+      filtered = filtered.filter((item) => item.quantity < 15);
     }
 
     return filtered;
@@ -246,8 +249,36 @@ const InventoryPage = () => {
         </button>
       </div>
 
+      {/* Expiry Warning Alert Banner */}
+      {!loading && (stats.expired > 0 || stats.near > 0) && (
+        <div className="mb-6 p-4 bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 hover:border-amber-500/30 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition duration-300">
+          <div className="flex items-center gap-3.5">
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 animate-pulse">
+              <FiAlertTriangle size={20} />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white">Batch Action Required</h4>
+              <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+                You have {stats.expired > 0 ? `${stats.expired} expired` : ""} 
+                {stats.expired > 0 && stats.near > 0 ? " and " : ""}
+                {stats.near > 0 ? `${stats.near} near-expiry` : ""} inventory batches. Remove or discount them to prevent sales compliance issues.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setFilter(stats.expired > 0 ? "expired" : "nearExpiry");
+              setCurrentPage(1);
+            }}
+            className="px-4.5 py-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-black border border-amber-500/20 hover:border-amber-500 rounded-xl text-xs font-bold transition duration-200 cursor-pointer whitespace-nowrap self-stretch md:self-auto text-center"
+          >
+            Review Batches
+          </button>
+        </div>
+      )}
+
       {/* Stats Summary widgets row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white/5 border border-white/10 rounded-2xl p-5 shadow-md flex items-center justify-between relative overflow-hidden">
           <div className="space-y-1">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Active Batches</p>
@@ -258,7 +289,7 @@ const InventoryPage = () => {
 
         <div className="bg-rose-500/5 border border-rose-500/10 rounded-2xl p-5 shadow-md flex items-center justify-between relative overflow-hidden">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold text-rose-450 uppercase tracking-wider">Expired Batches</p>
+            <p className="text-[10px] font-bold text-rose-455 uppercase tracking-wider">Expired Batches</p>
             <p className="text-3xl font-extrabold text-rose-400">{loading ? "..." : stats.expired}</p>
           </div>
           <span className="text-3xl p-3 bg-rose-500/10 rounded-xl border border-rose-500/20"><FiAlertTriangle className="text-rose-400" size={24} /></span>
@@ -266,19 +297,27 @@ const InventoryPage = () => {
 
         <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-5 shadow-md flex items-center justify-between relative overflow-hidden">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold text-amber-450 uppercase tracking-wider">Nearing Expiry (30 Days)</p>
+            <p className="text-[10px] font-bold text-amber-455 uppercase tracking-wider">Nearing Expiry</p>
             <p className="text-3xl font-extrabold text-amber-400">{loading ? "..." : stats.near}</p>
           </div>
           <span className="text-3xl p-3 bg-amber-500/10 rounded-xl border border-amber-500/20"><FiAlertTriangle className="text-amber-400" size={24} /></span>
+        </div>
+
+        <div className="bg-cyan-500/5 border border-cyan-500/10 rounded-2xl p-5 shadow-md flex items-center justify-between relative overflow-hidden">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-cyan-455 uppercase tracking-wider">Low Stock (&lt; 15 units)</p>
+            <p className="text-3xl font-extrabold text-cyan-400">{loading ? "..." : stats.lowStock}</p>
+          </div>
+          <span className="text-3xl p-3 bg-cyan-500/10 rounded-xl border border-cyan-500/20"><FiBox className="text-cyan-400" size={24} /></span>
         </div>
       </div>
 
       {/* Filter and Tab Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/10 pb-4 mb-6 gap-4">
         {/* Toggle tabs */}
-        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 w-full md:max-w-sm">
-          {(["all", "expired", "nearExpiry"] as const).map((type) => {
-            const labels = { all: "All Batches", expired: "Expired Only", nearExpiry: "Expiring Soon" };
+        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 w-full md:max-w-md">
+          {(["all", "expired", "nearExpiry", "lowStock"] as const).map((type) => {
+            const labels = { all: "All", expired: "Expired", nearExpiry: "Expiring", lowStock: "Low Stock" };
             return (
               <button
                 key={type}
@@ -287,7 +326,7 @@ const InventoryPage = () => {
                   setCurrentPage(1);
                 }}
                 className={`flex-grow py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-wider transition cursor-pointer ${
-                  filter === type ? "bg-white/10 text-white shadow-md" : "text-gray-450 hover:text-white"
+                  filter === type ? "bg-white/10 text-white shadow-md" : "text-gray-400 hover:text-white"
                 }`}
               >
                 {labels[type]}
@@ -314,7 +353,7 @@ const InventoryPage = () => {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {paginatedInventory.map((item) => {
               const isExpired = new Date(item.expiryDate) < new Date();
               const daysLeft = item.remainingDays;

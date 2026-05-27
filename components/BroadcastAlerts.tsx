@@ -18,11 +18,27 @@ const BroadcastAlerts: React.FC = () => {
     const fetchActiveAlerts = async () => {
       try {
         const token = localStorage.getItem("auth_token");
-        if (!token) return;
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        // Get user role from local storage
+        let userRole = "temp";
+        const userData = localStorage.getItem("user_data");
+        if (userData) {
+          try {
+            const parsed = JSON.parse(userData);
+            userRole = parsed.role || "temp";
+          } catch {}
+        }
 
         const response = await axios.get(
           `${process.env.NEXT_PUBLIC_BACKEND}/admin/announcements/active`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          { 
+            headers,
+            params: { role: userRole }
+          }
         );
         setAnnouncements(response.data);
       } catch (err) {
